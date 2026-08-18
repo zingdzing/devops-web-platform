@@ -3,9 +3,55 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ops Task Board</title>
+    <meta name="description" content="DevOps Web Platform Phase 1 operations task board">
+    <title>运维任务清单 | DevOps Web Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
   </head>
   <body>
-    <h1>Ops Task Board</h1>
+    <header class="site-header">
+      <div class="container">
+        <p class="eyebrow">DEVOPS WEB PLATFORM · PHASE 1</p>
+        <h1>运维任务清单</h1>
+        <p class="intro">记录、跟踪并完成日常运维事项，验证 Flask 与 MySQL 的完整数据链路。</p>
+        <div class="health-row" aria-label="服务能力">
+          <span>Flask API</span>
+          <span>MySQL 持久化</span>
+          <span>健康检查</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="container layout">
+      <section class="panel create-panel" aria-labelledby="create-heading">
+        <p class="section-number">01 / CREATE</p>
+        <h2 id="create-heading">新增任务</h2>
+        <form id="task-form">
+          <label for="title">任务标题</label>
+          <input id="title" name="title" maxlength="120" required placeholder="例如：检查数据库备份">
+
+          <label for="description">任务说明</label>
+          <textarea id="description" name="description" rows="5" required placeholder="写清检查对象、预期结果和处理要求"></textarea>
+
+          <button class="primary-button" type="submit">创建任务</button>
+        </form>
+        <p id="message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="panel list-panel" aria-labelledby="list-heading">
+        <div class="section-heading">
+          <div>
+            <p class="section-number">02 / TRACK</p>
+            <h2 id="list-heading">任务状态</h2>
+          </div>
+          <button id="refresh-button" class="secondary-button" type="button">刷新</button>
+        </div>
+        <div id="task-list" class="task-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="container site-footer">
+      <p>Phase 1：Flask + PyMySQL + MySQL 8.4</p>
+    </footer>
   </body>
 </html>

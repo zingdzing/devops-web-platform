@@ -2,7 +2,8 @@ def test_index_serves_frontend(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert b"Ops Task Board" in response.data
+    assert "运维任务清单" in response.get_data(as_text=True)
+    assert 'src="app.js"' in response.get_data(as_text=True)
 
 
 def test_healthz_reports_process_alive(client):
