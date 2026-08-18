@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="DevOps Web Platform Phase 2 containerized operations task board">
+    <meta name="description" content="DevOps Web Platform Phase 3 Kubernetes operations task board">
     <title>运维任务清单 | DevOps Web Platform</title>
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
@@ -11,14 +11,14 @@
   <body>
     <header class="site-header">
       <div class="container">
-        <p class="eyebrow">DEVOPS WEB PLATFORM · PHASE 2</p>
+        <p class="eyebrow">DEVOPS WEB PLATFORM · PHASE 3</p>
         <h1>运维任务清单</h1>
-        <p class="intro">记录、跟踪并完成日常运维事项，验证 Nginx、Gunicorn、Flask 与 MySQL 的容器化数据链路。</p>
+        <p class="intro">通过 Kubernetes、NGINX Ingress 与 Helm 部署运维任务清单，验证服务发现、健康检查、自动恢复和 MySQL 持久化。</p>
         <div class="health-row" aria-label="服务能力">
-          <span>Nginx 反向代理</span>
-          <span>Gunicorn + Flask</span>
+          <span>NGINX Ingress</span>
+          <span>Kubernetes 编排</span>
+          <span>Helm 部署</span>
           <span>MySQL 持久化</span>
-          <span>健康检查</span>
         </div>
       </div>
     </header>
@@ -52,7 +52,7 @@
     </main>
 
     <footer class="container site-footer">
-      <p>Phase 2：Nginx + Gunicorn/Flask + MySQL 8.4 + Docker Compose</p>
+      <p>Phase 3：k3d + Kubernetes + NGINX Ingress + Helm + MySQL 8.4</p>
     </footer>
   </body>
 </html>
