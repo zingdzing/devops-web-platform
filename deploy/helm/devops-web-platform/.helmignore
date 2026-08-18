@@ -1,0 +1,6 @@
+.DS_Store
+.git/
+.env
+*.tmp
+*.swp
+rendered*.yaml

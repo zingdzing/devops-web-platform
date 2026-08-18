@@ -1,0 +1,6 @@
+apiVersion: v2
+name: devops-web-platform
+description: Local Kubernetes deployment for the DevOps operations task board
+type: application
+version: 0.3.0
+appVersion: "3.0.0"

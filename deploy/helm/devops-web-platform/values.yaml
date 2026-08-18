@@ -1,0 +1,42 @@
+nameOverride: ""
+fullnameOverride: ""
+existingSecret: devops-platform-db
+
+images:
+  frontend:
+    repository: devops-web-platform-frontend
+    tag: phase3
+    pullPolicy: IfNotPresent
+  backend:
+    repository: devops-web-platform-backend
+    tag: phase3
+    pullPolicy: IfNotPresent
+  mysql:
+    repository: mysql
+    tag: 8.4.11
+    pullPolicy: IfNotPresent
+
+services:
+  frontendPort: 8080
+  backendPort: 5000
+  mysqlPort: 3306
+
+ingress:
+  enabled: true
+  className: nginx
+
+mysql:
+  database: ops_tasks
+  storageClassName: local-path
+  storageSize: 1Gi
+
+resources:
+  frontend:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 100m, memory: 64Mi}
+  backend:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+  mysql:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}

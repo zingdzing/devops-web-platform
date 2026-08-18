@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["existingSecret", "images", "services", "ingress", "mysql", "resources"],
+  "properties": {
+    "nameOverride": {"type": "string"},
+    "fullnameOverride": {"type": "string"},
+    "existingSecret": {"type": "string", "minLength": 1},
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frontend", "backend", "mysql"],
+      "properties": {
+        "frontend": {"$ref": "#/definitions/image"},
+        "backend": {"$ref": "#/definitions/image"},
+        "mysql": {"$ref": "#/definitions/image"}
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frontendPort", "backendPort", "mysqlPort"],
+      "properties": {
+        "frontendPort": {"$ref": "#/definitions/port"},
+        "backendPort": {"$ref": "#/definitions/port"},
+        "mysqlPort": {"$ref": "#/definitions/port"}
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "className"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "className": {"const": "nginx"}
+      }
+    },
+    "mysql": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database", "storageClassName", "storageSize"],
+      "properties": {
+        "database": {"type": "string", "minLength": 1},
+        "storageClassName": {"const": "local-path"},
+        "storageSize": {"type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi)$"}
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frontend", "backend", "mysql"],
+      "properties": {
+        "frontend": {"$ref": "#/definitions/resources"},
+        "backend": {"$ref": "#/definitions/resources"},
+        "mysql": {"$ref": "#/definitions/resources"}
+      }
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string", "minLength": 1, "not": {"const": "latest"}},
+        "pullPolicy": {"const": "IfNotPresent"}
+      }
+    },
+    "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "limits"],
+      "properties": {
+        "requests": {"$ref": "#/definitions/resourcePair"},
+        "limits": {"$ref": "#/definitions/resourcePair"}
+      }
+    },
+    "resourcePair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu", "memory"],
+      "properties": {
+        "cpu": {"type": "string", "minLength": 1},
+        "memory": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
