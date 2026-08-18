@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 
 from config import load_config
 from db import Database
+from routes import api
 
 
 def create_app(test_config=None, database=None):
@@ -14,6 +15,7 @@ def create_app(test_config=None, database=None):
         app.config.update(test_config)
 
     app.extensions["database"] = database or Database.from_config(app.config)
+    app.register_blueprint(api)
 
     @app.get("/")
     def index():
