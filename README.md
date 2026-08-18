@@ -4,90 +4,112 @@
 
 ## 当前状态
 
-**Phase 1：最小业务应用。**
+**Phase 2：容器化与本地多容器联调。**
 
-已实现一个“运维任务清单”：Flask 提供静态页面和 CRUD API，PyMySQL 使用参数化 SQL 读写 MySQL 8.4，`/healthz` 检查应用进程，`/readyz` 验证数据库连接。pytest 覆盖核心接口，验收脚本会真实停止并恢复 MySQL 以验证健康检查行为。
+已实现“运维任务清单”的三容器版本：非特权 Nginx 提供静态页面并反向代理 API，Gunicorn 运行 Flask 后端，MySQL 8.4 保存业务数据。Docker Compose 负责服务发现、健康依赖、网络和命名卷，自动验收覆盖 CRUD、非 root 运行、端口边界、数据库故障恢复与数据持久化。
 
-Docker Compose、Kubernetes、Helm、Jenkins 和监控仍属于后续阶段，当前文档不把它们描述为已完成能力。
+Kubernetes、Helm、Jenkins 和监控仍属于后续阶段，当前文档不把它们描述为已完成能力。
 
-## 快速验证
+## Phase 2 快速启动
 
-在 WSL Ubuntu 中执行：
+前置条件是 WSL Ubuntu、Git 和正在运行的 Docker Desktop。在 WSL 中执行：
 
 ```bash
-cd ~/projects/devops-web-platform
-python3 -m venv .venv
-.venv/bin/python -m pip install -r app/backend/requirements.txt
+git clone git@github.com:zingdzing/devops-web-platform.git
+cd devops-web-platform
 cp .env.example .env
-make phase1-verify
+make phase2-up
 ```
 
-验收内容包括 Python 语法、pytest、真实 MySQL 连接、CRUD，以及数据库停机和恢复后的 readiness 状态。
+浏览器访问 <http://127.0.0.1:8080>。
 
-## 本地运行
+`.env` 只用于本地运行，已被 Git 忽略，不能提交到仓库。正常停止且保留 MySQL 数据：
 
 ```bash
-make phase1-db-up
-make phase1-run
+make phase2-down
 ```
 
-浏览器访问 <http://127.0.0.1:5000>。停止应用按 `Ctrl+C`，停止数据库但保留数据执行：
+## 自动验收
 
 ```bash
-make phase1-db-down
+make phase2-verify
 ```
 
-## 健康检查
+该命令会：
+
+1. 验证 Compose 配置并构建两个应用镜像。
+2. 等待 Nginx、Flask 和 MySQL 全部健康。
+3. 通过 Nginx 完成任务新增、查询、修改和删除。
+4. 检查前后端非 root，后端和 MySQL 没有宿主机端口。
+5. 停止 MySQL，确认 `/healthz` 为 200、`/readyz` 和业务接口为 503。
+6. 恢复 MySQL，确认 readiness 自动恢复。
+7. 重建容器，确认命名卷中的数据仍然存在。
+8. 检查 Git 跟踪文件中没有常见 Token 或私钥特征。
+
+## Phase 2 请求流
+
+```text
+Browser
+  -> 127.0.0.1:8080
+  -> Nginx frontend
+  -> Gunicorn/Flask backend
+  -> MySQL
+  -> mysql-data named volume
+```
 
 - `/healthz`：只表示 Flask 进程可以响应，不依赖 MySQL。
 - `/readyz`：执行真实数据库连接检查；MySQL 不可用时返回 HTTP 503。
+- `/api/items`：提供运维任务 CRUD。
 
-这种区分会在 Kubernetes 阶段分别用于 livenessProbe 和 readinessProbe。
+## 常用命令
 
-## 规划中的系统
-
-```mermaid
-flowchart LR
-    Dev["Developer"] -->|git push| GitHub["GitHub"]
-    Jenkins["Jenkins"] --> GitHub
-    Jenkins -->|test/build/push| Registry["Docker Hub"]
-    Jenkins -->|Helm upgrade| K8s["k3d / Kubernetes"]
-    User["Browser"] --> Ingress["Nginx Ingress"]
-    Ingress --> Frontend["Nginx frontend"]
-    Ingress --> Backend["Flask API"]
-    Backend --> MySQL["MySQL"]
-    Prometheus["Prometheus"] --> Backend
-    Prometheus --> Grafana["Grafana"]
-    Prometheus --> Alertmanager["Alertmanager"]
+```bash
+make help
+make check
+make phase2-up
+make phase2-logs
+make phase2-verify
+make phase2-down
 ```
 
 ## 技术栈
 
-- Git、GitHub
-- Python、Flask、PyMySQL、pytest
+- Git、GitHub、SSH、2FA
+- Python 3.14、Flask 3.1、PyMySQL、pytest
+- Gunicorn 26
+- Nginx unprivileged 1.28
 - MySQL 8.4 LTS
-- Docker、Docker Compose（Phase 2）
-- Jenkins Pipeline（Phase 4）
-- k3d、Kubernetes、Helm（Phase 3）
-- Prometheus、Grafana、Alertmanager（Phase 5）
-- Bash、Makefile
+- Docker、Docker Compose、Dockerfile、多阶段构建
+- Bash、ShellCheck、Makefile
+- k3d、Kubernetes、Helm（Phase 3 计划）
+- Jenkins Pipeline（Phase 4 计划）
+- Prometheus、Grafana、Alertmanager（Phase 5 计划）
 
 ## 实施路线
 
 1. Phase 0：环境准备、仓库初始化、先决条件检查。✅
 2. Phase 1：静态前端、Flask API、MySQL 初始化与单元测试。✅
-3. Phase 2：Dockerfile、Docker Compose、本地多容器联调。
+3. Phase 2：Dockerfile、Docker Compose、本地多容器联调。✅
 4. Phase 3：k3d 集群、Nginx Ingress、Helm Chart 与持久化。
 5. Phase 4：Jenkins 测试、构建、推送、部署和验证流水线。
 6. Phase 5：Prometheus 指标、Grafana 仪表盘和 Alertmanager 告警。
 7. Phase 6：Pod 自愈、失败发布回滚、Runbook 与复盘。
 
+## 项目记录
+
+- `docs/implementation/`：每个阶段的目标、架构、命令和验证证据。
+- `docs/troubleshooting/`：实际问题、根因、解决办法和预防措施。
+- `docs/superpowers/specs/`：阶段设计。
+- `docs/superpowers/plans/`：可执行实施计划。
+
 ## 安全规则
 
 - 不提交 `.env`、真实密码、Token、恢复码、私钥或 kubeconfig。
-- `.env.example` 只包含本地无敏感示例值。
+- `.env.example` 只包含本地不可用于真实部署的示例值。
 - SQL 使用参数绑定，不拼接用户输入。
-- CI/CD 凭据后续保存在 Jenkins Credentials 中。
+- 前端和后端容器以非 root 用户运行。
+- 只有 Nginx 绑定 `127.0.0.1:8080`，后端和 MySQL 保持内部访问。
+- 本地实验使用 Compose 环境变量；生产环境应改用 Docker Secrets 或 Kubernetes Secret。
 - 如果凭据曾进入 Git 历史，立即吊销并重新生成。
 
 ## 项目原则
