@@ -8,27 +8,28 @@ metadata:
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
-    - http:
+    - host: localhost
+      http:
         paths:
           - path: /api
             pathType: Prefix
             backend:
               service:
-                name: {{ include "devops-web-platform.fullname" . }}-backend
+                name: backend
                 port:
                   number: {{ .Values.services.backendPort }}
           - path: /healthz
             pathType: Prefix
             backend:
               service:
-                name: {{ include "devops-web-platform.fullname" . }}-backend
+                name: backend
                 port:
                   number: {{ .Values.services.backendPort }}
           - path: /readyz
             pathType: Prefix
             backend:
               service:
-                name: {{ include "devops-web-platform.fullname" . }}-backend
+                name: backend
                 port:
                   number: {{ .Values.services.backendPort }}
           - path: /

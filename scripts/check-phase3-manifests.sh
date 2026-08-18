@@ -54,6 +54,7 @@ expect_kind_count ConfigMap 2
 expect_kind_count Ingress 1
 
 grep -Fq 'ingressClassName: nginx' "$rendered_file" || fail 'IngressClass nginx is missing'
+grep -Fq 'host: localhost' "$rendered_file" || fail 'F5-compatible localhost Ingress host is missing'
 grep -Fq 'whenDeleted: Retain' "$rendered_file" || fail 'PVC deletion retention is missing'
 grep -Fq 'whenScaled: Retain' "$rendered_file" || fail 'PVC scale retention is missing'
 grep -Fq 'path: /healthz' "$rendered_file" || fail 'healthz probe or route is missing'

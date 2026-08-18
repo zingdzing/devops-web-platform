@@ -485,7 +485,7 @@ git commit -m "feat: define phase 3 helm chart contract"
 
 **Interfaces:**
 - Consumes: Secret keys `DB_USER` and `DB_PASSWORD`; ConfigMap keys `DB_HOST`, `DB_PORT`, `DB_NAME`; images and ports from Task 2.
-- Produces: Services `devops-platform-devops-web-platform-frontend:8080` and `devops-platform-devops-web-platform-backend:5000`; component selector labels `frontend` and `backend` used by verification.
+- Produces: Services `devops-platform-devops-web-platform-frontend:8080` and `backend:5000`; the fixed backend name preserves compatibility with the Phase 2 frontend Nginx upstream inside the dedicated namespace. Component selector labels `frontend` and `backend` are used by verification.
 
 - [ ] **Step 1: Add a render assertion that initially fails**
 
@@ -748,7 +748,7 @@ git commit -m "feat: add retained mysql stateful workload"
 
 **Interfaces:**
 - Consumes: IngressClass `nginx`; frontend/backend Services from Task 3.
-- Produces: one hostless standard Ingress; `make phase3-manifests`; rendered-resource and secret-safety gate used before every deployment.
+- Produces: one standard Ingress for host `localhost`; `make phase3-manifests`; rendered-resource and secret-safety gate used before every deployment.
 
 - [ ] **Step 1: Demonstrate the missing routing resource**
 
@@ -763,26 +763,26 @@ Expected: FAIL.
 
 - [ ] **Step 2: Add standard Ingress routing**
 
-When `ingress.enabled` is true, render `networking.k8s.io/v1`, `ingressClassName: nginx`, and one rule without a host. Add Prefix paths in this order:
+When `ingress.enabled` is true, render `networking.k8s.io/v1`, `ingressClassName: nginx`, and host `localhost` because F5 NGINX Ingress Controller requires a host value. Add Prefix paths in this order:
 
 ```yaml
 - path: /api
   pathType: Prefix
   backend:
     service:
-      name: {{ include "devops-web-platform.fullname" . }}-backend
+      name: backend
       port: {number: 5000}
 - path: /healthz
   pathType: Prefix
   backend:
     service:
-      name: {{ include "devops-web-platform.fullname" . }}-backend
+      name: backend
       port: {number: 5000}
 - path: /readyz
   pathType: Prefix
   backend:
     service:
-      name: {{ include "devops-web-platform.fullname" . }}-backend
+      name: backend
       port: {number: 5000}
 - path: /
   pathType: Prefix
@@ -799,7 +799,7 @@ Do not add retired community-specific annotations.
 `NOTES.txt` must print:
 
 ```text
-DevOps Web Platform is available at http://127.0.0.1:8080
+DevOps Web Platform is available at http://localhost:8080
 Status: kubectl get pods,svc,ingress,pvc -n {{ .Release.Namespace }}
 Verify: make phase3-verify
 ```
@@ -935,7 +935,7 @@ helm upgrade --install devops-platform deploy/helm/devops-web-platform \
 kubectl rollout status deployment/devops-platform-devops-web-platform-frontend -n devops-platform --timeout=180s
 kubectl rollout status deployment/devops-platform-devops-web-platform-backend -n devops-platform --timeout=180s
 kubectl rollout status statefulset/devops-platform-devops-web-platform-mysql -n devops-platform --timeout=300s
-curl --fail --silent http://127.0.0.1:8080/readyz >/dev/null
+curl --fail --silent http://localhost:8080/readyz >/dev/null
 ```
 
 - [ ] **Step 6: Add safe stop and Make targets**
@@ -1016,7 +1016,7 @@ The script must check `.env`, curl, jq, python3, git, kubectl, Helm, k3d, the cu
 ```bash
 readonly NAMESPACE='devops-platform'
 readonly RELEASE='devops-platform'
-readonly BASE_URL='http://127.0.0.1:8080'
+readonly BASE_URL='http://localhost:8080'
 readonly BACKEND_SELECTOR='app.kubernetes.io/component=backend'
 readonly MYSQL_SELECTOR='app.kubernetes.io/component=mysql'
 readonly BACKEND_DEPLOYMENT_NAME='devops-platform-devops-web-platform-backend'
