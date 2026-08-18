@@ -1,0 +1,50 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials/
+secrets/
+
+# Kubernetes and Helm local state
+.kube/
+kubeconfig*
+*.tgz
+charts/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Tests and reports
+coverage.xml
+junit.xml
+reports/
+
+# Logs, runtime data, and database dumps
+*.log
+*.pid
+*.sql.gz
+backups/
+data/
+
+# IDEs and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Terraform is outside v1 scope, but never publish its local state
+.terraform/
+*.tfstate
+*.tfstate.*
