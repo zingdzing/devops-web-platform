@@ -320,7 +320,7 @@ Run:
 ```bash
 docker build -t devops-web-platform-frontend:phase2 app/frontend
 docker run --rm --entrypoint sh devops-web-platform-frontend:phase2 -c 'test "$(id -u)" != "0"'
-docker run --rm --entrypoint nginx devops-web-platform-frontend:phase2 -t
+docker run --rm --add-host backend:127.0.0.1 --entrypoint nginx devops-web-platform-frontend:phase2 -t
 docker image inspect devops-web-platform-frontend:phase2 --format '{{.Config.User}} {{json .Config.ExposedPorts}}'
 ```
 
