@@ -463,8 +463,8 @@ Run:
 curl --fail --silent http://127.0.0.1:8080/ | grep -Fq '运维任务清单'
 curl --fail --silent http://127.0.0.1:8080/healthz | grep -Fq '"alive"'
 curl --fail --silent http://127.0.0.1:8080/readyz | grep -Fq '"ready"'
-test "$(docker compose --env-file .env -f deploy/compose/docker-compose.yml port backend 5000 2>/dev/null || true)" = ""
-test "$(docker compose --env-file .env -f deploy/compose/docker-compose.yml port mysql 3306 2>/dev/null || true)" = ""
+test "$(docker inspect devops-web-platform-backend-1 --format '{{json .HostConfig.PortBindings}}')" = "{}"
+test "$(docker inspect devops-web-platform-mysql-1 --format '{{json .HostConfig.PortBindings}}')" = "{}"
 test "$(docker compose --env-file .env -f deploy/compose/docker-compose.yml exec -T backend id -u)" != "0"
 test "$(docker compose --env-file .env -f deploy/compose/docker-compose.yml exec -T frontend id -u)" != "0"
 ```
@@ -567,6 +567,16 @@ wait_for_status() {
   fail "$url did not reach HTTP $expected"
 }
 
+assert_no_host_ports() {
+  local service="$1"
+  local container_id
+  local bindings
+  container_id="$("${COMPOSE[@]}" ps -q "$service")"
+  [[ -n "$container_id" ]] || fail "$service has no container id"
+  bindings="$(docker inspect "$container_id" --format '{{json .HostConfig.PortBindings}}')"
+  [[ "$bindings" == '{}' ]] || fail "$service publishes a host port: $bindings"
+}
+
 # ShellCheck SC2329 is disabled because cleanup is invoked indirectly by the EXIT trap.
 # shellcheck disable=SC2329
 cleanup() {
@@ -607,8 +617,8 @@ expect_status 200 "$BASE_URL/healthz"
 expect_status 200 "$BASE_URL/readyz"
 
 log 'checking host exposure and runtime users'
-[[ -z "$("${COMPOSE[@]}" port backend 5000 2>/dev/null || true)" ]] || fail 'backend port is published'
-[[ -z "$("${COMPOSE[@]}" port mysql 3306 2>/dev/null || true)" ]] || fail 'MySQL port is published'
+assert_no_host_ports backend
+assert_no_host_ports mysql
 [[ "$("${COMPOSE[@]}" exec -T backend id -u)" != '0' ]] || fail 'backend runs as root'
 [[ "$("${COMPOSE[@]}" exec -T frontend id -u)" != '0' ]] || fail 'frontend runs as root'
 ! "${COMPOSE[@]}" exec -T backend python -m pytest --version >/dev/null 2>&1 \
@@ -905,9 +915,9 @@ Run:
 ```bash
 docker compose --env-file .env -f deploy/compose/docker-compose.yml ps
 docker compose --env-file .env -f deploy/compose/docker-compose.yml images
-docker compose --env-file .env -f deploy/compose/docker-compose.yml port frontend 8080
-docker compose --env-file .env -f deploy/compose/docker-compose.yml port backend 5000 2>/dev/null || true
-docker compose --env-file .env -f deploy/compose/docker-compose.yml port mysql 3306 2>/dev/null || true
+docker inspect devops-web-platform-frontend-1 --format '{{json .HostConfig.PortBindings}}'
+docker inspect devops-web-platform-backend-1 --format '{{json .HostConfig.PortBindings}}'
+docker inspect devops-web-platform-mysql-1 --format '{{json .HostConfig.PortBindings}}'
 git log --oneline --decorate -8
 ```
 
