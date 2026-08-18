@@ -14,7 +14,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping --host=127.0.0.1 --user=root --password=$$MYSQL_ROOT_PASSWORD --silent"]
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysql --protocol=TCP --host=127.0.0.1 --user=root --execute='SELECT 1' --silent >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12

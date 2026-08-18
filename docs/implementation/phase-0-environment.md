@@ -49,7 +49,7 @@ ssh-add ~/.ssh/id_ed25519
 
 ## 5. 验证结果
 
-2026-08-18 实际验证的主要环境为：Docker Engine 29.7.2、Docker Compose 5.4.0、kubectl v1.36.1、Helm v4.2.0、k3d v5.9.0、WSL Ubuntu 26.04、Git 和 Python 3.14。`make check` 的 15 项检查全部通过，SSH 推送成功，公开仓库为 `github.com/zingdzing/devops-web-platform`。
+2026-08-18 实际验证的主要环境为：Docker Engine 29.7.2、Docker Compose 5.4.0、kubectl v1.36.1、Helm v4.2.0、k3d v5.9.0、WSL Ubuntu 26.04、Git、curl 和 Python 3.14。`make check` 的 16 项检查全部通过，SSH 推送成功，公开仓库为 `github.com/zingdzing/devops-web-platform`。
 
 ## 6. 简历能力映射
 

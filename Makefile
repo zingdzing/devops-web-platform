@@ -34,6 +34,7 @@ phase1-verify:
 
 phase2-up:
 	@docker compose --env-file .env -f deploy/compose/docker-compose.yml up -d --build --wait
+	@curl --fail --silent http://127.0.0.1:8080/readyz >/dev/null
 
 phase2-down:
 	@docker compose --env-file .env -f deploy/compose/docker-compose.yml down

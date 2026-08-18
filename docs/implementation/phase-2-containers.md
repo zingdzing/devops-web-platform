@@ -51,10 +51,12 @@ make phase2-down
 - 编写前后端 Dockerfile 和 `.dockerignore`。
 - 使用多阶段构建缩小后端运行环境职责。
 - 以非 root 用户运行应用容器。
-- 使用 Docker Compose 完成服务发现、健康依赖、网络隔离和数据持久化。
+- 使用 Docker Compose 完成服务发现、健康依赖、项目专用网络、宿主机端口隔离和数据持久化。
 - 使用 Nginx 反向代理 Gunicorn/Flask。
 - 编写可重复执行的故障注入与恢复验收脚本。
 
 ## 7. 与下一阶段的关系
 
 Phase 3 将复用经过 Compose 验证的前后端镜像，把服务迁移到本地 k3d Kubernetes：前端与后端对应 Deployment/Service，MySQL 对应带持久化存储的工作负载。Phase 2 不提前加入 Kubernetes、Jenkins 或监控组件。
+
+当前镜像固定版本标签但未固定 digest，Python 传递依赖也没有哈希锁定；这满足本地入门项目的可复现要求，但不属于字节级供应链锁定。进入 CI/CD 阶段后再评估镜像 digest 和完整依赖锁文件。

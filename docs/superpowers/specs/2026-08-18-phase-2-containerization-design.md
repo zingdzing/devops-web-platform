@@ -75,7 +75,7 @@ Named Docker volume
 - 继续使用 `app/database/init.sql` 初始化 `ops_tasks` 表。
 - 使用命名 Volume 保存 `/var/lib/mysql`。
 - 使用 `mysqladmin ping` 和本地环境变量执行健康检查。
-- 不映射宿主机 3306 端口，只允许后端通过内部网络访问。
+- 不映射宿主机 3306 端口，通过项目专用 Compose 网络访问。
 
 ### 4.4 Docker Compose
 

@@ -14,6 +14,7 @@ fail() {
 }
 
 required_commands=(
+  curl
   docker
   git
   python3

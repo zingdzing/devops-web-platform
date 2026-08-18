@@ -8,6 +8,7 @@ readonly -a COMPOSE
 created_id=""
 persistent_id=""
 response_file=""
+mysql_stopped_by_verifier=false
 
 log() {
   printf '[phase2] %s\n' "$1"
@@ -17,6 +18,11 @@ fail() {
   printf '[phase2] ERROR: %s\n' "$1" >&2
   "${COMPOSE[@]}" ps >&2 || true
   "${COMPOSE[@]}" logs --tail=80 >&2 || true
+  exit 1
+}
+
+preflight_fail() {
+  printf '[phase2] ERROR: %s\n' "$1" >&2
   exit 1
 }
 
@@ -56,13 +62,15 @@ assert_no_host_ports() {
 # shellcheck disable=SC2329
 cleanup() {
   local current
-  "${COMPOSE[@]}" start mysql >/dev/null 2>&1 || true
-  for ((current = 1; current <= 60; current += 1)); do
-    if [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "$BASE_URL/readyz" || true)" == '200' ]]; then
-      break
-    fi
-    sleep 2
-  done
+  if [[ "$mysql_stopped_by_verifier" == true ]]; then
+    "${COMPOSE[@]}" start mysql >/dev/null 2>&1 || true
+    for ((current = 1; current <= 60; current += 1)); do
+      if [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' "$BASE_URL/readyz" || true)" == '200' ]]; then
+        break
+      fi
+      sleep 2
+    done
+  fi
   if [[ -n "$created_id" ]]; then
     curl --silent --request DELETE "$BASE_URL/api/items/$created_id" >/dev/null || true
   fi
@@ -73,13 +81,13 @@ cleanup() {
     rm -f -- "$response_file"
   fi
 }
-trap cleanup EXIT
 
-[[ -f .env ]] || fail '.env is missing; copy .env.example to .env first'
-command -v docker >/dev/null || fail 'docker is not installed'
-command -v curl >/dev/null || fail 'curl is not installed'
-command -v python3 >/dev/null || fail 'python3 is not installed'
+[[ -f .env ]] || preflight_fail '.env is missing; copy .env.example to .env first'
+command -v docker >/dev/null || preflight_fail 'docker is not installed'
+command -v curl >/dev/null || preflight_fail 'curl is not installed'
+command -v python3 >/dev/null || preflight_fail 'python3 is not installed'
 response_file="$(mktemp /tmp/devops-phase2-response.XXXXXX)"
+trap cleanup EXIT
 
 log 'validating Compose and tracked source safety'
 "${COMPOSE[@]}" config --quiet
@@ -89,6 +97,10 @@ fi
 if git grep -nEI '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN (OPENSSH|RSA|EC) PRIVATE KEY-----)' -- .; then
   fail 'tracked content contains a token or private-key signature'
 fi
+[[ "$(sed -n '/^[^#[:space:]]/ {p;q;}' app/backend/.dockerignore)" == '*' ]] \
+  || fail 'backend build context is not default-deny'
+[[ "$(sed -n '/^[^#[:space:]]/ {p;q;}' app/frontend/.dockerignore)" == '*' ]] \
+  || fail 'frontend build context is not default-deny'
 
 log 'building and starting all services'
 "${COMPOSE[@]}" up -d --build --wait
@@ -140,6 +152,7 @@ persistent_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])'
 
 log 'stopping MySQL and checking degraded readiness'
 "${COMPOSE[@]}" stop mysql
+mysql_stopped_by_verifier=true
 wait_for_status 503 "$BASE_URL/readyz" 20
 expect_status 200 "$BASE_URL/healthz"
 expect_status 503 "$BASE_URL/api/items"
@@ -147,6 +160,7 @@ expect_status 503 "$BASE_URL/api/items"
 log 'starting MySQL and checking automatic recovery'
 "${COMPOSE[@]}" start mysql
 wait_for_status 200 "$BASE_URL/readyz" 60
+mysql_stopped_by_verifier=false
 
 log 'recreating containers without deleting the volume'
 "${COMPOSE[@]}" up -d --force-recreate --wait

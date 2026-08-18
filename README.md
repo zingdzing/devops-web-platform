@@ -12,7 +12,7 @@ Kubernetes、Helm、Jenkins 和监控仍属于后续阶段，当前文档不把�
 
 ## Phase 2 快速启动
 
-前置条件是 WSL Ubuntu、Git 和正在运行的 Docker Desktop。在 WSL 中执行：
+前置条件是 WSL Ubuntu、Git、Bash、curl、Python 3、Docker Compose 和正在运行的 Docker Desktop。在 WSL 中执行：
 
 ```bash
 git clone git@github.com:zingdzing/devops-web-platform.git

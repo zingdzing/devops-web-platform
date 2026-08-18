@@ -180,19 +180,14 @@ CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--access-logfile",
 Create `app/backend/.dockerignore` with:
 
 ```text
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.coverage
-htmlcov/
-tests/
-requirements-dev.txt
-.env
-.env.*
-*.pem
-*.key
-*.p12
-*.pfx
+*
+!Dockerfile
+!requirements.txt
+!__init__.py
+!app.py
+!config.py
+!db.py
+!routes.py
 ```
 
 - [ ] **Step 4: Build and inspect the backend image**
@@ -305,12 +300,11 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=6 \
 Create `app/frontend/.dockerignore` with:
 
 ```text
-.env
-.env.*
-*.pem
-*.key
-*.p12
-*.pfx
+*
+!Dockerfile
+!nginx.conf
+!src/
+!src/**
 ```
 
 - [ ] **Step 4: Build and statically validate Nginx**
@@ -374,7 +368,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping --host=127.0.0.1 --user=root --password=$$MYSQL_ROOT_PASSWORD --silent"]
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysql --protocol=TCP --host=127.0.0.1 --user=root --execute='SELECT 1' --silent >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -500,6 +494,7 @@ Add `phase2-up phase2-down phase2-logs phase2-verify` to `.PHONY`, append these 
 
 phase2-up:
 	@docker compose --env-file .env -f deploy/compose/docker-compose.yml up -d --build --wait
+	@curl --fail --silent http://127.0.0.1:8080/readyz >/dev/null
 
 phase2-down:
 	@docker compose --env-file .env -f deploy/compose/docker-compose.yml down
@@ -533,6 +528,7 @@ COMPOSE=(docker compose --env-file .env -f "$COMPOSE_FILE")
 readonly -a COMPOSE
 created_id=""
 persistent_id=""
+mysql_stopped_by_verifier=false
 
 log() {
   printf '[phase2] %s\n' "$1"
@@ -542,6 +538,11 @@ fail() {
   printf '[phase2] ERROR: %s\n' "$1" >&2
   "${COMPOSE[@]}" ps >&2 || true
   "${COMPOSE[@]}" logs --tail=80 >&2 || true
+  exit 1
+}
+
+preflight_fail() {
+  printf '[phase2] ERROR: %s\n' "$1" >&2
   exit 1
 }
 
@@ -580,7 +581,9 @@ assert_no_host_ports() {
 # ShellCheck SC2329 is disabled because cleanup is invoked indirectly by the EXIT trap.
 # shellcheck disable=SC2329
 cleanup() {
-  "${COMPOSE[@]}" start mysql >/dev/null 2>&1 || true
+  if [[ "$mysql_stopped_by_verifier" == true ]]; then
+    "${COMPOSE[@]}" start mysql >/dev/null 2>&1 || true
+  fi
   if [[ -n "$created_id" ]]; then
     curl --silent --request DELETE "$BASE_URL/api/items/$created_id" >/dev/null || true
   fi
@@ -588,7 +591,6 @@ cleanup() {
     curl --silent --request DELETE "$BASE_URL/api/items/$persistent_id" >/dev/null || true
   fi
 }
-trap cleanup EXIT
 ```
 
 - [ ] **Step 3: Add preflight, build, health, and exposure checks**
@@ -596,10 +598,11 @@ trap cleanup EXIT
 Append:
 
 ```bash
-[[ -f .env ]] || fail '.env is missing; copy .env.example to .env first'
-command -v docker >/dev/null || fail 'docker is not installed'
-command -v curl >/dev/null || fail 'curl is not installed'
-command -v python3 >/dev/null || fail 'python3 is not installed'
+[[ -f .env ]] || preflight_fail '.env is missing; copy .env.example to .env first'
+command -v docker >/dev/null || preflight_fail 'docker is not installed'
+command -v curl >/dev/null || preflight_fail 'curl is not installed'
+command -v python3 >/dev/null || preflight_fail 'python3 is not installed'
+trap cleanup EXIT
 
 log 'validating Compose and source safety'
 "${COMPOSE[@]}" config --quiet
@@ -607,6 +610,10 @@ log 'validating Compose and source safety'
   || fail 'Git tracks a forbidden secret-shaped file'
 ! git grep -nEI '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN (OPENSSH|RSA|EC) PRIVATE KEY-----)' -- . \
   || fail 'tracked content contains a token or private-key signature'
+[[ "$(sed -n '/^[^#[:space:]]/ {p;q;}' app/backend/.dockerignore)" == '*' ]] \
+  || fail 'backend build context is not default-deny'
+[[ "$(sed -n '/^[^#[:space:]]/ {p;q;}' app/frontend/.dockerignore)" == '*' ]] \
+  || fail 'frontend build context is not default-deny'
 
 log 'building and starting all services'
 "${COMPOSE[@]}" up -d --build --wait
@@ -669,6 +676,7 @@ persistent_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])'
 
 log 'stopping MySQL and checking degraded readiness'
 "${COMPOSE[@]}" stop mysql
+mysql_stopped_by_verifier=true
 wait_for_status 503 "$BASE_URL/readyz" 20
 expect_status 200 "$BASE_URL/healthz"
 expect_status 503 "$BASE_URL/api/items"
@@ -676,6 +684,7 @@ expect_status 503 "$BASE_URL/api/items"
 log 'starting MySQL and checking automatic recovery'
 "${COMPOSE[@]}" start mysql
 wait_for_status 200 "$BASE_URL/readyz" 60
+mysql_stopped_by_verifier=false
 
 log 'recreating stateless containers without deleting the volume'
 "${COMPOSE[@]}" up -d --force-recreate --wait

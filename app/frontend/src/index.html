@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="DevOps Web Platform Phase 1 operations task board">
+    <meta name="description" content="DevOps Web Platform Phase 2 containerized operations task board">
     <title>运维任务清单 | DevOps Web Platform</title>
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
@@ -11,11 +11,12 @@
   <body>
     <header class="site-header">
       <div class="container">
-        <p class="eyebrow">DEVOPS WEB PLATFORM · PHASE 1</p>
+        <p class="eyebrow">DEVOPS WEB PLATFORM · PHASE 2</p>
         <h1>运维任务清单</h1>
-        <p class="intro">记录、跟踪并完成日常运维事项，验证 Flask 与 MySQL 的完整数据链路。</p>
+        <p class="intro">记录、跟踪并完成日常运维事项，验证 Nginx、Gunicorn、Flask 与 MySQL 的容器化数据链路。</p>
         <div class="health-row" aria-label="服务能力">
-          <span>Flask API</span>
+          <span>Nginx 反向代理</span>
+          <span>Gunicorn + Flask</span>
           <span>MySQL 持久化</span>
           <span>健康检查</span>
         </div>
@@ -51,7 +52,7 @@
     </main>
 
     <footer class="container site-footer">
-      <p>Phase 1：Flask + PyMySQL + MySQL 8.4</p>
+      <p>Phase 2：Nginx + Gunicorn/Flask + MySQL 8.4 + Docker Compose</p>
     </footer>
   </body>
 </html>
