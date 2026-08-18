@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import Flask, jsonify
 
 from config import load_config
+from db import Database
 
 
 def create_app(test_config=None, database=None):
@@ -11,8 +12,8 @@ def create_app(test_config=None, database=None):
     app.config.from_mapping(load_config())
     if test_config:
         app.config.update(test_config)
-    if database is not None:
-        app.extensions["database"] = database
+
+    app.extensions["database"] = database or Database.from_config(app.config)
 
     @app.get("/")
     def index():
@@ -21,6 +22,20 @@ def create_app(test_config=None, database=None):
     @app.get("/healthz")
     def healthz():
         return jsonify(status="alive")
+
+    @app.get("/readyz")
+    def readyz():
+        if app.extensions["database"].check_connection():
+            return jsonify(status="ready")
+        return (
+            jsonify(
+                error={
+                    "code": "database_unavailable",
+                    "message": "database is unavailable",
+                }
+            ),
+            503,
+        )
 
     return app
 

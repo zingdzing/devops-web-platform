@@ -9,9 +9,24 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app import create_app
 
 
+class FakeDatabase:
+    def __init__(self):
+        self.available = True
+        self.items = []
+        self.next_id = 1
+
+    def check_connection(self):
+        return self.available
+
+
 @pytest.fixture()
-def app():
-    return create_app({"TESTING": True})
+def fake_database():
+    return FakeDatabase()
+
+
+@pytest.fixture()
+def app(fake_database):
+    return create_app({"TESTING": True}, database=fake_database)
 
 
 @pytest.fixture()
