@@ -1,4 +1,4 @@
-.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create
+.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests
 
 help:
 	@printf '%s\n' \
@@ -13,7 +13,8 @@ help:
 		'  make phase2-down           Stop Phase 2 without deleting data' \
 		'  make phase2-logs           Follow Phase 2 service logs' \
 		'  make phase2-verify         Run the full Phase 2 acceptance test' \
-		'  make phase3-cluster-create Create or start the Phase 3 cluster and ingress controller'
+		'  make phase3-cluster-create Create or start the Phase 3 cluster and ingress controller' \
+		'  make phase3-manifests      Validate the Phase 3 Helm manifests without deploying'
 
 check:
 	@bash scripts/check-prerequisites.sh
@@ -48,3 +49,6 @@ phase2-verify:
 
 phase3-cluster-create:
 	@bash scripts/create-phase3-cluster.sh
+
+phase3-manifests:
+	@bash scripts/check-phase3-manifests.sh
