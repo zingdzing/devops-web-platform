@@ -1032,7 +1032,7 @@ import sys
 import urllib.error
 import urllib.request
 try:
-    response = urllib.request.urlopen(sys.argv[1], timeout=2)
+    response = urllib.request.urlopen(sys.argv[1], timeout=5)
     print(response.status)
 except urllib.error.HTTPError as error:
     print(error.code)
@@ -1077,7 +1077,7 @@ Create `Phase 3 verification`, list it, update it to `completed`, and delete it 
 
 - [ ] **Step 7: Verify Deployment reconciliation**
 
-Capture the backend Pod UID, delete that Pod, wait for the Deployment rollout, capture the replacement UID, and require the UIDs to differ. Then require external `/healthz` and `/readyz` to return 200.
+Capture the backend Pod UID and name, delete that Pod with `--wait=true`, wait for a Pod matching the backend selector to become Ready, then wait for the Deployment rollout. Capture the replacement UID and require the UIDs to differ. Then require external `/healthz` and `/readyz` to return 200. Waiting for deletion and Ready prevents reading the terminating Pod from an eventually consistent selector result.
 
 - [ ] **Step 8: Verify dependency degradation without killing Flask**
 
@@ -1085,7 +1085,7 @@ Capture the backend Pod name, scale the MySQL StatefulSet to 0, set `mysql_scale
 
 - [ ] **Step 9: Verify StatefulSet recreation and PVC persistence**
 
-Create a `Phase 3 persistence` item and retain its numeric ID. Capture MySQL Pod UID, delete the Pod without deleting the PVC, wait for StatefulSet rollout, require the replacement UID to differ, and query `/api/items` until the persistent ID appears. Delete the test item and clear `persistent_id`.
+Create a `Phase 3 persistence` item and retain its numeric ID. Capture MySQL Pod UID and name, delete the Pod with `--wait=true` without deleting the PVC, wait for a Pod matching the MySQL selector to become Ready, then wait for StatefulSet rollout. Require the replacement UID to differ and query `/api/items` until the persistent ID appears. Delete the test item and clear `persistent_id`.
 
 - [ ] **Step 10: Verify repeated Helm upgrade and tracked-file safety**
 

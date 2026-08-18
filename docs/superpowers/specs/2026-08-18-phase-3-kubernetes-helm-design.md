@@ -179,6 +179,8 @@ Secret 保存：
 
 MySQL 不可用时，后端 `/healthz` 保持 200，`/readyz` 返回 503。Kubernetes 因此停止把业务流量发送给未就绪 Pod，但不会因依赖短暂故障反复重启正常的后端进程。
 
+Kubernetes Service 默认只把 Ready Pod 放入可用端点。单副本 backend 因数据库故障变为 NotReady 后，Ingress 无法继续访问它，因此故障验收通过 `kubectl exec` 在仍运行的 backend Pod 内直接检查 `/healthz=200` 和 `/readyz=503`；外部入口此时返回 503。该现象表示流量隔离生效，不表示 Flask 进程已经退出。
+
 ### 6.3 MySQL
 
 - startup/liveness 用于判断 MySQL 进程是否启动并能够响应。
