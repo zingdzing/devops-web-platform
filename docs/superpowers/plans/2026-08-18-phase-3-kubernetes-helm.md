@@ -1182,7 +1182,7 @@ Create the troubleshooting document with the standard fields `现象、影响、
 Update current status, quick start, automated acceptance, request flow, common commands, technology status, route checkmarks, and safety notes. The quick start must be:
 
 ```bash
-cp .env.example .env
+install -m 600 .env.example .env
 make phase3-cluster-create
 make phase3-deploy
 make phase3-verify

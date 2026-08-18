@@ -9,7 +9,7 @@
 首次创建集群并部署：
 
 ```bash
-cp .env.example .env
+install -m 600 .env.example .env
 make phase3-cluster-create
 make phase3-deploy
 make phase3-verify
@@ -105,3 +105,16 @@ kubectl delete pvc -n devops-platform mysql-data-devops-platform-devops-web-plat
 ```bash
 k3d cluster delete devops-platform
 ```
+
+如果确实要修改本地数据库名、用户或密码，当前项目不支持保留数据在线轮换。只有确认任务数据可以丢弃时，才执行完整重建：
+
+```bash
+make phase3-stop
+k3d cluster delete devops-platform
+chmod 600 .env
+make phase3-cluster-create
+make phase3-deploy
+make phase3-verify
+```
+
+这会删除旧集群及其中的 local-path MySQL 数据，再使用新 `.env` 初始化一个全新数据库。

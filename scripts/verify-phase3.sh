@@ -15,7 +15,10 @@ readonly CLUSTER_CONTEXT='k3d-devops-platform'
 created_id=''
 persistent_id=''
 response_file=''
+rotation_env_file=''
+rotation_log_file=''
 mysql_scaled_down=false
+configmap_deleted=false
 
 log() {
   printf '[phase3] %s\n' "$1"
@@ -112,6 +115,13 @@ wait_for_item() {
 cleanup() {
   local exit_status="$?"
   set +e
+  if [[ "$configmap_deleted" == true ]]; then
+    helm template "$RELEASE" "$CHART_DIR" \
+      --namespace "$NAMESPACE" \
+      --set-string mysql.database="$DB_NAME" \
+      --show-only templates/configmap.yaml \
+      | kubectl apply --namespace "$NAMESPACE" -f - >/dev/null || true
+  fi
   if [[ "$mysql_scaled_down" == true ]]; then
     kubectl scale statefulset/"$MYSQL_STATEFUL_NAME" --namespace "$NAMESPACE" --replicas=1 >/dev/null
     kubectl rollout status statefulset/"$MYSQL_STATEFUL_NAME" --namespace "$NAMESPACE" --timeout=300s >/dev/null || true
@@ -127,13 +137,21 @@ cleanup() {
   if [[ -n "$response_file" ]]; then
     rm -f -- "$response_file"
   fi
+  if [[ -n "$rotation_env_file" ]]; then
+    rm -f -- "$rotation_env_file"
+  fi
+  if [[ -n "$rotation_log_file" ]]; then
+    rm -f -- "$rotation_log_file"
+  fi
   exit "$exit_status"
 }
 
-[[ -f .env ]] || preflight_fail '.env is missing; copy .env.example to .env first'
-for command_name in curl jq python3 git kubectl helm k3d make mktemp; do
+[[ -f .env ]] || preflight_fail '.env is missing; create it with: install -m 600 .env.example .env'
+for command_name in curl jq python3 git kubectl helm k3d make mktemp stat; do
   command -v "$command_name" >/dev/null 2>&1 || preflight_fail "$command_name is missing"
 done
+[[ "$(stat --format='%a' .env)" == '600' ]] \
+  || preflight_fail '.env must have mode 600; run: chmod 600 .env'
 [[ "$(kubectl config current-context)" == "$CLUSTER_CONTEXT" ]] \
   || preflight_fail "current context is not $CLUSTER_CONTEXT"
 kubectl wait --for=condition=Ready node --all --timeout=30s >/dev/null \
@@ -245,12 +263,42 @@ wait_for_item "$persistent_id" 30
 curl --silent --request DELETE "$BASE_URL/api/items/$persistent_id" >/dev/null
 persistent_id=''
 
-log 'checking repeated Helm upgrade and tracked-file safety'
-helm upgrade --install "$RELEASE" "$CHART_DIR" \
-  --namespace "$NAMESPACE" \
-  --set-string mysql.database="$DB_NAME" \
-  --rollback-on-failure --wait=watcher --timeout 5m >/dev/null
+log 'checking repeated deployment and recovery when the Helm ConfigMap is missing'
+[[ "$(kubectl get secret devops-platform-db --namespace "$NAMESPACE" -o json \
+  | jq -r '.data.DB_NAME | @base64d')" == "$DB_NAME" ]] \
+  || fail 'external Secret does not retain the database name identity'
+kubectl delete configmap devops-platform-devops-web-platform-config --namespace "$NAMESPACE" >/dev/null
+configmap_deleted=true
+bash scripts/deploy-phase3.sh >/dev/null
+kubectl get configmap devops-platform-devops-web-platform-config --namespace "$NAMESPACE" >/dev/null \
+  || fail 'standard deployment did not restore the deleted Helm ConfigMap'
+configmap_deleted=false
 make phase3-manifests >/dev/null
+
+log 'checking that existing PVC credentials cannot change silently'
+rotation_env_file="$(mktemp /tmp/devops-phase3-rotation.XXXXXX)"
+rotation_log_file="$(mktemp /tmp/devops-phase3-rotation-log.XXXXXX)"
+chmod 600 "$rotation_log_file"
+printf 'DB_NAME=%s\nDB_USER=%s\nDB_PASSWORD=%s\nMYSQL_ROOT_PASSWORD=%s\n' \
+  "$DB_NAME" "$DB_USER" "${DB_PASSWORD}-unsupported-rotation" "$MYSQL_ROOT_PASSWORD" >"$rotation_env_file"
+chmod 644 "$rotation_env_file"
+if PHASE3_ENV_FILE="$rotation_env_file" bash scripts/deploy-phase3.sh >"$rotation_log_file" 2>&1; then
+  fail 'deployment accepted an environment file with unsafe permissions'
+fi
+grep -Fq 'must have mode 600' "$rotation_log_file" \
+  || fail 'unsafe environment-file rejection did not include the chmod 600 guidance'
+
+chmod 600 "$rotation_env_file"
+: >"$rotation_log_file"
+if PHASE3_ENV_FILE="$rotation_env_file" bash scripts/deploy-phase3.sh >"$rotation_log_file" 2>&1; then
+  fail 'deployment accepted an unsupported database credential change'
+fi
+grep -Fq 'database identity changes are not supported' "$rotation_log_file" \
+  || fail 'credential-change rejection did not explain the PVC identity constraint'
+[[ "$(kubectl get secret devops-platform-db --namespace "$NAMESPACE" -o json \
+  | jq -r '.data.DB_PASSWORD | @base64d')" == "$DB_PASSWORD" ]] \
+  || fail 'credential-change rejection modified the existing Secret'
+
 if git ls-files | grep -Eq '(^|/)(\.env|kubeconfig([^/]*|/.*)|id_(rsa|ed25519)|.*\.(pem|key|p12|pfx)|.*secret.*\.ya?ml)$'; then
   fail 'Git tracks a forbidden secret-shaped file'
 fi

@@ -36,7 +36,7 @@ Browser
 ## 4. 实际执行命令
 
 ```bash
-cp .env.example .env
+install -m 600 .env.example .env
 make phase3-cluster-create
 make phase3-manifests
 make phase3-deploy
@@ -44,11 +44,11 @@ make phase3-status
 make phase3-verify
 ```
 
-浏览器入口为 <http://localhost:8080>。日常停止使用 `make phase3-stop`，重新运行 `make phase3-deploy` 即可恢复。
+浏览器入口为 <http://localhost:8080>。日常停止使用 `make phase3-stop`；恢复时先运行 `make phase3-cluster-create`，再运行 `make phase3-deploy`。
 
 ## 5. 验证结果
 
-2026-08-18，`make phase3-verify` 连续两次退出 0。最终 Helm release 为 revision 5、状态 `deployed`；frontend/backend Deployment 和 MySQL StatefulSet 均为 `1/1 Ready`，PVC 为 `Bound`，Ingress 使用 `nginx` IngressClass 和 `localhost` Host。
+2026-08-18，`make phase3-verify` 连续两次退出 0，重复 Helm upgrade 后 release 状态为 `deployed`；frontend/backend Deployment 和 MySQL StatefulSet 均为 `1/1 Ready`，PVC 为 `Bound`，Ingress 使用 `nginx` IngressClass 和 `localhost` Host。
 
 自动验收通过 Ingress 完成 CRUD；删除 backend Pod 后，UID 从 `5897eb18` 变为 `78483083`，Deployment 自动补齐副本；MySQL 缩容为 0 时，backend 进程的 `/healthz` 保持 200，数据库就绪检查 `/readyz` 返回 503，Service 将 NotReady Pod 从端点中移除；MySQL 恢复后 readiness 自动恢复。删除 MySQL Pod 后，UID 从 `7deed554` 变为 `2f5049fd`，预先写入的记录仍可查询，证明 PVC 被重新挂载。
 
@@ -66,7 +66,8 @@ make phase3-verify
 - 集群只有一个 k3d server 节点，各工作负载只有一个副本；Pod 可以自动恢复，但恢复期间会短暂不可用，不是零停机高可用。
 - MySQL 是单副本，PVC 使用 k3s `local-path` StorageClass；它适合本机学习，不提供跨节点复制、备份或灾难恢复。
 - `helm uninstall` 因 PVC retention policy 不主动删除声明，但删除整个 k3d 集群会丢失集群内 local-path 数据。
-- Secret 在部署时从被 Git 忽略且权限为 600 的 `.env` 创建；没有实现 Vault、External Secrets 或密钥轮换。
+- Secret 在部署时从被 Git 忽略且权限为 600 的 `.env` 创建；已有 PVC 时会拒绝数据库身份变化，没有实现 Vault、External Secrets 或在线密钥轮换。
+- backend Service 为复用已有 Nginx 镜像固定命名为 `backend`，因此当前 Chart 限定一个 namespace 一个 release。
 - 应用镜像只导入本地 k3d，没有推送镜像仓库，也没有实现自动发布流水线。
 
 ## 8. 与 Phase 4 的关系

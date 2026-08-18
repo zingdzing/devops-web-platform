@@ -17,7 +17,7 @@ Jenkins 自动发布属于 Phase 4，Prometheus/Grafana/Alertmanager 属于 Phas
 ```bash
 git clone git@github.com:zingdzing/devops-web-platform.git
 cd devops-web-platform
-cp .env.example .env
+install -m 600 .env.example .env
 make phase3-cluster-create
 make phase3-deploy
 make phase3-verify
@@ -105,6 +105,7 @@ make phase3-stop
 - 不提交 `.env`、真实密码、Token、恢复码、私钥、kubeconfig 或渲染后的 Secret。
 - frontend/backend 以非 root 用户运行；应用 Service 不使用 NodePort 或 LoadBalancer。
 - Secret 运行时从 `.env` 创建；生产环境应改用专门的密钥管理方案。
+- 为保护已有 MySQL PVC，当前阶段不支持直接修改数据库名、用户或密码；部署脚本会拒绝这类变化。
 - 当前只有一个节点、一个 frontend、一个 backend 和一个 MySQL。它能演示 Pod 自愈，但不是零停机或生产级高可用。
 - PVC 使用本地 `local-path`；删除整个 k3d cluster 会丢失该集群中的数据库数据。
 

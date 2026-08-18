@@ -23,7 +23,7 @@ Chart 不创建密码值，也不安装 Ingress Controller。部署脚本从被 
 ## Phase 3 操作命令
 
 ```bash
-cp .env.example .env
+install -m 600 .env.example .env
 make phase3-cluster-create
 make phase3-manifests
 make phase3-deploy
@@ -38,9 +38,12 @@ make phase3-stop
 ## 数据与密钥边界
 
 - `.env` 被 Git 忽略，且部署前必须是 mode 600；不要写入真实线上凭据。
+- 已有 MySQL PVC 时，部署脚本会拒绝数据库名、用户或密码变化；本 Chart 不实现在线凭据轮换。
 - MySQL PVC 使用 `Retain` retention policy，普通 Pod 重建、缩容和 Helm upgrade 不会删除数据。
 - 删除 PVC 或整个 k3d cluster 会丢失 local-path 数据。
 - 不要把 `helm template --show-only ...secret...` 的输出保存并提交到仓库。
+
+当前 Chart 的 backend Service 为了复用 Phase 2 Nginx 镜像而固定命名为 `backend`，因此约束为“一个 namespace 只安装一个 release”，不把它描述成通用多实例 Chart。
 
 ## 后续部署内容
 
