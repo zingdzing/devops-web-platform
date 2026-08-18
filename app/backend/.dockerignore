@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+requirements-dev.txt
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
