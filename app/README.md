@@ -1,9 +1,11 @@
-# Application boundary
+# Application
 
-后续 Phase 1 会在这里增加三个边界清晰的组件：
+Phase 1 包含三个应用边界：
 
-- `frontend/`：Nginx 托管的 HTML、CSS 和 JavaScript 静态页面。
-- `backend/`：Flask CRUD API、健康检查、数据库连接和 Prometheus 指标。
-- `database/`：MySQL 表结构和初始化数据。
+- `frontend/src/`：由 Flask 临时提供的原生 HTML、CSS 和 JavaScript 页面。
+- `backend/`：Flask CRUD API、健康检查、PyMySQL 数据访问和 pytest。
+- `database/`：MySQL `ops_tasks` 表初始化 SQL。
 
-当前阶段不创建空的 Dockerfile 或应用源码，避免让公开仓库误显得功能已经实现。
+运行路径为：浏览器 → Flask `/api/items` → PyMySQL 参数化 SQL → MySQL 8.4。
+
+Phase 2 会为前端和后端分别增加 Dockerfile，并由 Nginx 提供静态页面；API 路径保持 `/api` 不变。
