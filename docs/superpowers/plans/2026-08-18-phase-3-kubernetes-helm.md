@@ -51,7 +51,7 @@
 - `deploy/helm/devops-web-platform/templates/NOTES.txt` — post-install URL and diagnostic commands.
 - `scripts/create-phase3-cluster.sh` — idempotently creates/starts k3d and installs the fixed F5 controller chart.
 - `scripts/check-phase3-manifests.sh` — offline Chart contract and secret-safety checks.
-- `scripts/deploy-phase3.sh` — builds/imports images, creates the runtime Secret, and performs atomic Helm deployment.
+- `scripts/deploy-phase3.sh` — builds/imports images, creates the runtime Secret, and performs a Helm 4 rollback-on-failure deployment.
 - `scripts/stop-phase3.sh` — stops k3d without deleting the cluster or PVC.
 - `scripts/verify-phase3.sh` — real CRUD, recovery, persistence, exposure, and security acceptance test.
 - `docs/implementation/phase-3-kubernetes.md` — verified implementation evidence and resume mapping.
@@ -124,13 +124,13 @@ options:
 Run:
 
 ```bash
-k3d config process --config deploy/k3d/cluster.yaml >/tmp/devops-phase3-k3d.yaml
+k3d config migrate deploy/k3d/cluster.yaml /tmp/devops-phase3-k3d.yaml
 grep -F 'rancher/k3s:v1.36.1-k3s1' /tmp/devops-phase3-k3d.yaml
 grep -F -- '--disable=traefik' /tmp/devops-phase3-k3d.yaml
 rm -f /tmp/devops-phase3-k3d.yaml
 ```
 
-Expected: both pinned values are printed and the command exits 0.
+Expected: k3d parses the v1alpha5 file without creating a cluster, both pinned values are printed, and the command exits 0. k3d 5.9 does not provide the older `config process` subcommand; `config migrate` is the supported parse-and-normalize check.
 
 - [ ] **Step 4: Write the idempotent cluster/controller script**
 
@@ -161,6 +161,9 @@ if k3d cluster list -o json | jq -e --arg name "$CLUSTER_NAME" '.[] | select(.na
   log 'starting the existing cluster'
   k3d cluster start "$CLUSTER_NAME"
 else
+  if docker ps --format '{{.Names}} {{.Ports}}' | grep -Fq '127.0.0.1:8080->'; then
+    fail '127.0.0.1:8080 is already published; stop Phase 2 with make phase2-down'
+  fi
   log 'creating the pinned cluster'
   k3d cluster create --config "$CLUSTER_CONFIG"
 fi
@@ -180,7 +183,7 @@ helm upgrade --install "$NIC_RELEASE" "$NIC_CHART" \
   --set controller.appprotect.enable=false \
   --set controller.appprotectdos.enable=false \
   --set controller.service.type=LoadBalancer \
-  --atomic --wait --timeout 5m
+  --rollback-on-failure --wait=watcher --timeout 5m
 
 kubectl --namespace "$NIC_NAMESPACE" wait \
   --for=condition=Available deployment --all --timeout=180s
@@ -919,7 +922,7 @@ kubectl get secret devops-platform-db -n devops-platform \
   -o json | jq -e '.data | keys | sort == ["DB_PASSWORD","DB_USER","MYSQL_ROOT_PASSWORD"]'
 ```
 
-- [ ] **Step 5: Perform an atomic Helm install/upgrade**
+- [ ] **Step 5: Perform a Helm 4 rollback-on-failure install/upgrade**
 
 Run:
 
@@ -928,7 +931,7 @@ helm upgrade --install devops-platform deploy/helm/devops-web-platform \
   --namespace devops-platform \
   --create-namespace \
   --set-string mysql.database="$DB_NAME" \
-  --atomic --wait --timeout 5m
+  --rollback-on-failure --wait=watcher --timeout 5m
 kubectl rollout status deployment/devops-platform-devops-web-platform-frontend -n devops-platform --timeout=180s
 kubectl rollout status deployment/devops-platform-devops-web-platform-backend -n devops-platform --timeout=180s
 kubectl rollout status statefulset/devops-platform-devops-web-platform-mysql -n devops-platform --timeout=300s
@@ -1086,7 +1089,7 @@ Create a `Phase 3 persistence` item and retain its numeric ID. Capture MySQL Pod
 
 - [ ] **Step 10: Verify repeated Helm upgrade and tracked-file safety**
 
-Run the same `helm upgrade --install ... --set-string mysql.database="$DB_NAME" --atomic --wait` command from Task 6, rerun `make phase3-manifests`, scan tracked files with the Phase 2 secret patterns, and require `.env`, kubeconfig, private-key-shaped filenames, and rendered Secret manifests to remain untracked.
+Run the same `helm upgrade --install ... --set-string mysql.database="$DB_NAME" --rollback-on-failure --wait=watcher` command from Task 6, rerun `make phase3-manifests`, scan tracked files with the Phase 2 secret patterns, and require `.env`, kubeconfig, private-key-shaped filenames, and rendered Secret manifests to remain untracked.
 
 - [ ] **Step 11: Add target and run the complete test**
 
