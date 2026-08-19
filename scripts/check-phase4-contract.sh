@@ -84,6 +84,11 @@ for required_deploy_option in \
 done
 grep -Fq 'actual_image' "$CI_DIR/deploy.sh" \
   || fail 'actual Pod image comparison is missing'
+if grep -Eq 'get[[:space:]]+namespace([[:space:]]|\")' "$CI_DIR/deploy.sh"; then
+  fail 'deploy script must not require cluster-scoped Namespace read permission'
+fi
+grep -Fq 'configured_namespace=' "$CI_DIR/deploy.sh" \
+  || fail 'deploy script must validate the kubeconfig namespace locally'
 grep -Fq '/api/items' "$CI_DIR/smoke-test.sh" \
   || fail 'real API smoke check is missing'
 grep -Fq 'DEVOPS WEB PLATFORM · PHASE 4' "$CI_DIR/smoke-test.sh" \

@@ -28,7 +28,10 @@ current_context="$(kubectl --kubeconfig "$KUBECONFIG" config current-context)"
 [[ "$current_context" == "$EXPECTED_CONTEXT" ]] \
   || ci_fail "kubeconfig context must be $EXPECTED_CONTEXT"
 
-kubectl --kubeconfig "$KUBECONFIG" get namespace "$CI_NAMESPACE" >/dev/null
+configured_namespace="$(kubectl --kubeconfig "$KUBECONFIG" config view \
+  --minify --output 'jsonpath={.contexts[0].context.namespace}')"
+[[ "$configured_namespace" == "$CI_NAMESPACE" ]] \
+  || ci_fail "kubeconfig namespace must be $CI_NAMESPACE"
 helm status "$CI_RELEASE" --kubeconfig "$KUBECONFIG" \
   --namespace "$CI_NAMESPACE" >/dev/null \
   || ci_fail "existing Helm release $CI_RELEASE was not found"
