@@ -35,11 +35,32 @@ require_file "$KUBECONFIG_SCRIPT"
 for ci_script in \
   "$CI_DIR/common.sh" \
   "$CI_DIR/unit-test.sh" \
-  "$CI_DIR/quality-check.sh"; do
+  "$CI_DIR/quality-check.sh" \
+  "$CI_DIR/build-images.sh" \
+  "$CI_DIR/verify-images.sh"; do
   require_file "$ci_script"
   grep -Fq 'set -Eeuo pipefail' "$ci_script" \
     || fail "$ci_script must use strict Bash mode"
 done
+
+grep -Fq 'ci_validate_image_tag()' "$CI_DIR/common.sh" \
+  || fail 'common CI helpers must validate IMAGE_TAG'
+grep -Fq 'org.opencontainers.image.revision' "$CI_DIR/build-images.sh" \
+  || fail 'image builds must record the Git revision OCI label'
+grep -Fq 'app/frontend' "$CI_DIR/build-images.sh" \
+  || fail 'frontend image build context is missing'
+grep -Fq 'app/backend' "$CI_DIR/build-images.sh" \
+  || fail 'backend image build context is missing'
+grep -Fq -- '--entrypoint nginx' "$CI_DIR/verify-images.sh" \
+  || fail 'frontend Nginx entrypoint verification is missing'
+grep -Eq -- '(^|[[:space:]])-t([[:space:]]|$)' "$CI_DIR/verify-images.sh" \
+  || fail 'frontend Nginx test mode is missing'
+grep -Fq 'from app import create_app' "$CI_DIR/verify-images.sh" \
+  || fail 'backend application import verification is missing'
+grep -Fq 'pytest --version' "$CI_DIR/verify-images.sh" \
+  || fail 'backend production dependency verification is missing'
+grep -Fq -- '--entrypoint id' "$CI_DIR/verify-images.sh" \
+  || fail 'non-root image verification is missing'
 
 if grep -Eq '(^|[[:space:]])(source|\.)[[:space:]]+([^[:space:]]*/)?\.env([[:space:]]|$)' "$CI_DIR"/*.sh; then
   fail 'CI scripts must not source the root .env file'
