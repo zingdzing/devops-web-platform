@@ -37,7 +37,10 @@ for ci_script in \
   "$CI_DIR/unit-test.sh" \
   "$CI_DIR/quality-check.sh" \
   "$CI_DIR/build-images.sh" \
-  "$CI_DIR/verify-images.sh"; do
+  "$CI_DIR/verify-images.sh" \
+  "$CI_DIR/deploy.sh" \
+  "$CI_DIR/smoke-test.sh" \
+  "$CI_DIR/collect-diagnostics.sh"; do
   require_file "$ci_script"
   grep -Fq 'set -Eeuo pipefail' "$ci_script" \
     || fail "$ci_script must use strict Bash mode"
@@ -61,6 +64,22 @@ grep -Fq 'pytest --version' "$CI_DIR/verify-images.sh" \
   || fail 'backend production dependency verification is missing'
 grep -Fq -- '--entrypoint id' "$CI_DIR/verify-images.sh" \
   || fail 'non-root image verification is missing'
+for required_deploy_option in \
+  '--set-string images.frontend.repository' \
+  '--set-string images.frontend.tag' \
+  '--set-string images.backend.repository' \
+  '--set-string images.backend.tag' \
+  '--rollback-on-failure' \
+  '--timeout 5m'; do
+  grep -Fq -- "$required_deploy_option" "$CI_DIR/deploy.sh" \
+    || fail "protected Helm deployment option is missing: $required_deploy_option"
+done
+grep -Fq 'actual_image' "$CI_DIR/deploy.sh" \
+  || fail 'actual Pod image comparison is missing'
+grep -Fq '/api/items' "$CI_DIR/smoke-test.sh" \
+  || fail 'real API smoke check is missing'
+grep -Fq 'DEVOPS WEB PLATFORM · PHASE 4' "$CI_DIR/smoke-test.sh" \
+  || fail 'Phase 4 page marker smoke check is missing'
 
 if grep -Eq '(^|[[:space:]])(source|\.)[[:space:]]+([^[:space:]]*/)?\.env([[:space:]]|$)' "$CI_DIR"/*.sh; then
   fail 'CI scripts must not source the root .env file'
@@ -70,6 +89,9 @@ if grep -Eq 'kubectl[[:space:]]+get[[:space:]]+secrets?.*-o[[:space:]]+(yaml|jso
 fi
 if grep -Eq 'docker[[:space:]]+(system|image)[[:space:]]+prune|helm[[:space:]]+uninstall|kubectl[[:space:]]+delete[[:space:]]+(namespace|pvc|persistentvolumeclaim|secret)|rm[[:space:]]+-rf' "$CI_DIR"/*.sh; then
   fail 'CI scripts contain a forbidden destructive command'
+fi
+if grep -Eq 'kubectl[[:space:]]+create[[:space:]]+secret|helm[[:space:]]+rollback' "$CI_DIR"/*.sh; then
+  fail 'CI scripts may not create secrets or issue an extra rollback'
 fi
 
 grep -Fq 'FROM jenkins/jenkins:2.568.1-jdk21' "$JENKINS_DIR/Dockerfile" \
