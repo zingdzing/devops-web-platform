@@ -20,6 +20,12 @@ Chart 不创建密码值，也不安装 Ingress Controller。部署脚本从被 
 
 `k3d/cluster.yaml` 创建本地 K3s 集群并禁用自带 Traefik。`scripts/create-phase3-cluster.sh` 另行安装 F5 NGINX Ingress Controller。Controller 是集群入口基础设施；应用 Chart 中的 Ingress 只是路由规则，两者不是同一个资源。
 
+### Jenkins CI/CD（Phase 4）
+
+`jenkins/` 定义固定版本、持久化且仅监听本机的 Jenkins Controller。仓库根目录 `Jenkinsfile` 调用 `scripts/ci/`，按 Git SHA 测试、构建和验证前后端镜像，再推送 Docker Hub，并通过专用 namespace ServiceAccount 更新现有 Helm Release。
+
+Phase 4 不替代 Phase 3 的首次环境创建：集群、Ingress Controller、数据库 Secret、MySQL StatefulSet 和 PVC 必须已经存在。Pipeline 不调用 `deploy-phase3.sh`，不读取根目录 `.env`，也不创建或修改数据库 Secret。
+
 ## Phase 3 操作命令
 
 ```bash
@@ -45,6 +51,8 @@ make phase3-stop
 
 当前 Chart 的 backend Service 为了复用 Phase 2 Nginx 镜像而固定命名为 `backend`，因此约束为“一个 namespace 只安装一个 release”，不把它描述成通用多实例 Chart。
 
+Phase 4 的 Docker Hub PAT 和专用 kubeconfig 只存入 Jenkins Credentials。具体启停、轮换、失败诊断和手工回滚步骤见 `docs/runbooks/phase-4-jenkins-operations.md`。
+
 ## 后续部署内容
 
-`monitoring/` 将在 Phase 5 保存 kube-prometheus-stack values、PrometheusRule 和 Grafana Dashboard。Jenkins 发布流程属于 Phase 4，尚未实现。
+`monitoring/` 将在 Phase 5 保存 kube-prometheus-stack values、PrometheusRule 和 Grafana Dashboard。Phase 4 Jenkins 发布代码已实现，只有在完成用户本人持有的凭据设置和端到端验收后，才视为正式完成。
