@@ -1,4 +1,4 @@
-.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify
+.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-contract
 
 help:
 	@printf '%s\n' \
@@ -19,7 +19,12 @@ help:
 		'  make phase3-status         Show Phase 3 Pods, Services, Ingress, and PVC' \
 		'  make phase3-logs           Follow the Phase 3 backend logs' \
 		'  make phase3-stop           Stop k3d while preserving the cluster and PVC' \
-		'  make phase3-verify         Run Phase 3 recovery and persistence acceptance'
+		'  make phase3-verify         Run Phase 3 recovery and persistence acceptance' \
+		'  make phase4-jenkins-build  Build the pinned Jenkins controller image' \
+		'  make phase4-jenkins-up     Start Jenkins and preserve Jenkins Home' \
+		'  make phase4-jenkins-logs   Follow Jenkins controller logs' \
+		'  make phase4-jenkins-stop   Stop Jenkins without deleting Jenkins Home' \
+		'  make phase4-contract       Check Phase 4 files without deploying'
 
 check:
 	@bash scripts/check-prerequisites.sh
@@ -72,3 +77,18 @@ phase3-stop:
 
 phase3-verify:
 	@bash scripts/verify-phase3.sh
+
+phase4-jenkins-build:
+	@docker compose -f deploy/jenkins/compose.yaml build
+
+phase4-jenkins-up:
+	@docker compose -f deploy/jenkins/compose.yaml up -d --wait
+
+phase4-jenkins-logs:
+	@docker compose -f deploy/jenkins/compose.yaml logs --follow
+
+phase4-jenkins-stop:
+	@docker compose -f deploy/jenkins/compose.yaml stop
+
+phase4-contract:
+	@bash scripts/check-phase4-contract.sh

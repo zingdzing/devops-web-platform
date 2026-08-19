@@ -1,0 +1,25 @@
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: devops-platform-jenkins:2.568.1
+    container_name: devops-platform-jenkins
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:8090:8080
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:8080/login]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+
+volumes:
+  jenkins_home:
+    name: devops-platform-jenkins-home
