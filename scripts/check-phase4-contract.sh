@@ -50,6 +50,10 @@ done
 
 grep -Fq 'ci_validate_image_tag()' "$CI_DIR/common.sh" \
   || fail 'common CI helpers must validate IMAGE_TAG'
+grep -Fq "readonly CI_FRONTEND_REPOSITORY='zingzin/devops-web-platform-frontend'" "$CI_DIR/common.sh" \
+  || fail 'frontend Docker Hub repository does not match the verified zingzin namespace'
+grep -Fq "readonly CI_BACKEND_REPOSITORY='zingzin/devops-web-platform-backend'" "$CI_DIR/common.sh" \
+  || fail 'backend Docker Hub repository does not match the verified zingzin namespace'
 grep -Fq 'org.opencontainers.image.revision' "$CI_DIR/build-images.sh" \
   || fail 'image builds must record the Git revision OCI label'
 grep -Fq 'app/frontend' "$CI_DIR/build-images.sh" \

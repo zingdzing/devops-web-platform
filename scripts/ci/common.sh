@@ -9,8 +9,8 @@ readonly CI_FRONTEND_DEPLOYMENT='devops-platform-devops-web-platform-frontend'
 readonly CI_BACKEND_DEPLOYMENT='devops-platform-devops-web-platform-backend'
 readonly CI_MYSQL_STATEFULSET='devops-platform-devops-web-platform-mysql'
 readonly CI_DATABASE_SECRET='devops-platform-db'
-readonly CI_FRONTEND_REPOSITORY='zingdzing/devops-web-platform-frontend'
-readonly CI_BACKEND_REPOSITORY='zingdzing/devops-web-platform-backend'
+readonly CI_FRONTEND_REPOSITORY='zingzin/devops-web-platform-frontend'
+readonly CI_BACKEND_REPOSITORY='zingzin/devops-web-platform-backend'
 
 export CI_NAMESPACE CI_RELEASE CI_CHART_DIR
 export CI_FRONTEND_DEPLOYMENT CI_BACKEND_DEPLOYMENT CI_MYSQL_STATEFULSET

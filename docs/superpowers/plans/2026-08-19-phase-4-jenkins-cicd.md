@@ -16,7 +16,7 @@
 - Bind Jenkins only to `127.0.0.1:8090`; do not publish port 50000 or expose Jenkins through a public tunnel.
 - Use `jenkins/jenkins:2.568.1-jdk21`; never use `latest` for Jenkins or application deployment images.
 - Keep the existing k3d cluster `devops-platform`, context `k3d-devops-platform`, application namespace/release `devops-platform`, and Ingress host port `8080`.
-- Publish only `zingdzing/devops-web-platform-frontend:git-<sha12>` and `zingdzing/devops-web-platform-backend:git-<sha12>`.
+- Publish only `zingzin/devops-web-platform-frontend:git-<sha12>` and `zingzin/devops-web-platform-backend:git-<sha12>`.
 - Preserve all 14 existing pytest tests, Phase 2 behavior, Phase 3 Helm contracts, MySQL StatefulSet, external Secret `devops-platform-db`, and retained PVC.
 - Jenkins must not read root `.env`, create/update/delete the database Secret, delete PVCs, uninstall the release, delete the namespace, or prune Docker globally.
 - Store only `dockerhub-ci` and `k3d-deployer-kubeconfig` in Jenkins; never commit or log passwords, PATs, tokens, recovery codes, private keys, kubeconfig, `.env`, or rendered Secret data.
@@ -75,8 +75,8 @@ readonly CI_FRONTEND_DEPLOYMENT='devops-platform-devops-web-platform-frontend'
 readonly CI_BACKEND_DEPLOYMENT='devops-platform-devops-web-platform-backend'
 readonly CI_MYSQL_STATEFULSET='devops-platform-devops-web-platform-mysql'
 readonly CI_DATABASE_SECRET='devops-platform-db'
-readonly CI_FRONTEND_REPOSITORY='zingdzing/devops-web-platform-frontend'
-readonly CI_BACKEND_REPOSITORY='zingdzing/devops-web-platform-backend'
+readonly CI_FRONTEND_REPOSITORY='zingzin/devops-web-platform-frontend'
+readonly CI_BACKEND_REPOSITORY='zingzin/devops-web-platform-backend'
 ```
 
 Build/deploy scripts consume `IMAGE_TAG=git-[0-9a-f]{12}`. Kubernetes scripts consume `KUBECONFIG` as a Jenkins Secret File path. `smoke-test.sh` defaults `CI_BASE_URL` to `http://host.docker.internal:8080`. No script sources `.env`.
@@ -393,7 +393,7 @@ git commit -m "test: add phase 4 unit and quality gates"
 
 **Interfaces:**
 - Consumes: `IMAGE_TAG`, optional `GIT_COMMIT_FULL`, optional `BUILD_NUMBER`, Docker Engine.
-- Produces: two local `zingdzing/...:${IMAGE_TAG}` images with OCI labels and `reports/images.txt`.
+- Produces: two local `zingzin/...:${IMAGE_TAG}` images with OCI labels and `reports/images.txt`.
 
 - [ ] **Step 1: Add failing image-script contracts**
 
@@ -589,15 +589,15 @@ The user creates a unique administrator password. Do not record it. Confirm `htt
 Exact names:
 
 ```text
-zingdzing/devops-web-platform-frontend
-zingdzing/devops-web-platform-backend
+zingzin/devops-web-platform-frontend
+zingzin/devops-web-platform-backend
 ```
 
 No repository password is created.
 
 - [ ] **Step 3: Have the user create and store the Docker PAT**
 
-Create PAT label `jenkins-devops-web-platform` with Read & Write and a finite expiry. Add Jenkins Username with password Credential ID `dockerhub-ci`; username is `zingdzing`; password field is the PAT. The user must not send or screenshot it.
+Create PAT label `jenkins-devops-web-platform` with Read & Write and a finite expiry. Add Jenkins Username with password Credential ID `dockerhub-ci`; username is `zingzin`; password field is the PAT. The user must not send or screenshot it.
 
 - [ ] **Step 4: Upload and remove the generated kubeconfig**
 

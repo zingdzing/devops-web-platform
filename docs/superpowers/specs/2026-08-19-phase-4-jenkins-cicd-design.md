@@ -49,8 +49,8 @@ Docker Socket 挂载使 Jenkins 能复用 Docker Desktop 构建镜像，但等�
 使用两个公开 Docker Hub 仓库：
 
 ```text
-zingdzing/devops-web-platform-frontend
-zingdzing/devops-web-platform-backend
+zingzin/devops-web-platform-frontend
+zingzin/devops-web-platform-backend
 ```
 
 每次构建使用同一个提交派生的标签：
@@ -62,8 +62,8 @@ git-<前12位Git SHA>
 例如：
 
 ```text
-zingdzing/devops-web-platform-frontend:git-12ab34cd56ef
-zingdzing/devops-web-platform-backend:git-12ab34cd56ef
+zingzin/devops-web-platform-frontend:git-12ab34cd56ef
+zingzin/devops-web-platform-backend:git-12ab34cd56ef
 ```
 
 不使用 `latest`。Docker Hub Tag 在技术上仍可被覆盖，因此文档称其为“提交可追踪标签”，不虚称仓库已经强制不可变。镜像额外写入 OCI revision/source/build-number 标签，验收时检查运行中的 Pod 与当前 Git SHA 一致。

@@ -53,7 +53,7 @@ Jenkins 只保存两个项目凭据：
 
 | ID | 类型 | 内容 | 用途 |
 |---|---|---|---|
-| `dockerhub-ci` | Username with password | 用户名 `zingdzing`，Password 填 Docker Hub PAT | 只在 Push Images 阶段登录 Docker Hub |
+| `dockerhub-ci` | Username with password | 用户名 `zingzin`，Password 填 Docker Hub PAT | 只在 Push Images 阶段登录 Docker Hub |
 | `k3d-deployer-kubeconfig` | Secret file | 临时生成的专用 kubeconfig 文件 | 只在部署、验证和失败诊断时访问目标 namespace |
 
 不要在 Pipeline 全局 `environment` 中保存凭据，也不要在 Console Log 中打印它们。

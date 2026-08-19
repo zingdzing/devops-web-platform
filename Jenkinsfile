@@ -14,8 +14,8 @@ pipeline {
   }
 
   environment {
-    CI_FRONTEND_REPOSITORY = 'zingdzing/devops-web-platform-frontend'
-    CI_BACKEND_REPOSITORY = 'zingdzing/devops-web-platform-backend'
+    CI_FRONTEND_REPOSITORY = 'zingzin/devops-web-platform-frontend'
+    CI_BACKEND_REPOSITORY = 'zingzin/devops-web-platform-backend'
   }
 
   stages {
