@@ -7,6 +7,7 @@ readonly COMPOSE_FILE="$JENKINS_DIR/compose.yaml"
 readonly RBAC_FILE='deploy/kubernetes/jenkins-rbac.yaml'
 readonly KUBECONFIG_SCRIPT='scripts/create-phase4-kubeconfig.sh'
 readonly CI_DIR='scripts/ci'
+readonly JENKINSFILE='Jenkinsfile'
 
 fail() {
   printf '[phase4-contract] ERROR: %s\n' "$1" >&2
@@ -31,6 +32,7 @@ done
 
 require_file "$RBAC_FILE"
 require_file "$KUBECONFIG_SCRIPT"
+require_file "$JENKINSFILE"
 
 for ci_script in \
   "$CI_DIR/common.sh" \
@@ -80,6 +82,41 @@ grep -Fq '/api/items' "$CI_DIR/smoke-test.sh" \
   || fail 'real API smoke check is missing'
 grep -Fq 'DEVOPS WEB PLATFORM · PHASE 4' "$CI_DIR/smoke-test.sh" \
   || fail 'Phase 4 page marker smoke check is missing'
+
+expected_stages=(
+  'Checkout'
+  'Unit Test'
+  'Quality Check'
+  'Build Images'
+  'Image Verification'
+  'Push Images'
+  'Deploy'
+  'Rollout Verification'
+  'Smoke Test'
+)
+stage_count="$(grep -Ec "^[[:space:]]*stage\\('[^']+'\\)" "$JENKINSFILE")"
+[[ "$stage_count" == '9' ]] || fail "Jenkinsfile has $stage_count stages; expected 9"
+previous_line=0
+for stage_name in "${expected_stages[@]}"; do
+  stage_line="$(grep -nF "stage('$stage_name')" "$JENKINSFILE" | cut -d: -f1)"
+  [[ -n "$stage_line" && "$stage_line" -gt "$previous_line" ]] \
+    || fail "Jenkins stage is missing or out of order: $stage_name"
+  previous_line="$stage_line"
+done
+for pipeline_contract in \
+  "timeout(time: 30, unit: 'MINUTES')" \
+  'disableConcurrentBuilds()' \
+  'timestamps()' \
+  "numToKeepStr: '20'" \
+  "pollSCM('H/5 * * * *')" \
+  "credentialsId: 'dockerhub-ci'" \
+  "credentialsId: 'k3d-deployer-kubeconfig'" \
+  'junit' \
+  'archiveArtifacts' \
+  'collect-diagnostics.sh'; do
+  grep -Fq "$pipeline_contract" "$JENKINSFILE" \
+    || fail "Jenkinsfile contract is missing: $pipeline_contract"
+done
 
 if grep -Eq '(^|[[:space:]])(source|\.)[[:space:]]+([^[:space:]]*/)?\.env([[:space:]]|$)' "$CI_DIR"/*.sh; then
   fail 'CI scripts must not source the root .env file'

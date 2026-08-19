@@ -19,6 +19,10 @@ ci_require_variable KUBECONFIG
 ci_validate_image_tag "$IMAGE_TAG"
 [[ -r "$KUBECONFIG" ]] || ci_fail 'KUBECONFIG is not a readable file'
 
+mode="${1:-deploy}"
+[[ "$mode" == 'deploy' || "$mode" == '--verify-only' ]] \
+  || ci_fail 'usage: deploy.sh [--verify-only]'
+
 readonly EXPECTED_CONTEXT='jenkins-deployer@devops-platform'
 current_context="$(kubectl --kubeconfig "$KUBECONFIG" config current-context)"
 [[ "$current_context" == "$EXPECTED_CONTEXT" ]] \
@@ -38,14 +42,16 @@ bound_pvc="$(kubectl --kubeconfig "$KUBECONFIG" get persistentvolumeclaims \
   --output 'jsonpath={range .items[?(@.status.phase=="Bound")]}{.metadata.name}{"\n"}{end}')"
 [[ -n "$bound_pvc" ]] || ci_fail 'no Bound MySQL PVC was found'
 
-ci_log "Deploying $IMAGE_TAG with protected Helm image-only overrides"
-helm upgrade --install "$CI_RELEASE" "$CI_CHART_DIR" \
-  --kubeconfig "$KUBECONFIG" --namespace "$CI_NAMESPACE" \
-  --set-string images.frontend.repository="$CI_FRONTEND_REPOSITORY" \
-  --set-string images.frontend.tag="$IMAGE_TAG" \
-  --set-string images.backend.repository="$CI_BACKEND_REPOSITORY" \
-  --set-string images.backend.tag="$IMAGE_TAG" \
-  --rollback-on-failure --wait=watcher --timeout 5m
+if [[ "$mode" == 'deploy' ]]; then
+  ci_log "Deploying $IMAGE_TAG with protected Helm image-only overrides"
+  helm upgrade --install "$CI_RELEASE" "$CI_CHART_DIR" \
+    --kubeconfig "$KUBECONFIG" --namespace "$CI_NAMESPACE" \
+    --set-string images.frontend.repository="$CI_FRONTEND_REPOSITORY" \
+    --set-string images.frontend.tag="$IMAGE_TAG" \
+    --set-string images.backend.repository="$CI_BACKEND_REPOSITORY" \
+    --set-string images.backend.tag="$IMAGE_TAG" \
+    --rollback-on-failure --wait=watcher --timeout 5m
+fi
 
 kubectl --kubeconfig "$KUBECONFIG" rollout status \
   "deployment/$CI_FRONTEND_DEPLOYMENT" --namespace "$CI_NAMESPACE" --timeout=5m
