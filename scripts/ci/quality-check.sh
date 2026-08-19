@@ -22,7 +22,7 @@ mapfile -d '' shell_files < <(
 )
 [[ "${#shell_files[@]}" -gt 0 ]] || ci_fail 'no shell scripts were found'
 bash -n "${shell_files[@]}"
-shellcheck "${shell_files[@]}"
+shellcheck --severity=warning "${shell_files[@]}"
 
 ci_log 'Checking Helm manifests and canonical database initialization SQL'
 make phase3-manifests

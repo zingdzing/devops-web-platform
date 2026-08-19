@@ -54,6 +54,8 @@ grep -Fq "readonly CI_FRONTEND_REPOSITORY='zingzin/devops-web-platform-frontend'
   || fail 'frontend Docker Hub repository does not match the verified zingzin namespace'
 grep -Fq "readonly CI_BACKEND_REPOSITORY='zingzin/devops-web-platform-backend'" "$CI_DIR/common.sh" \
   || fail 'backend Docker Hub repository does not match the verified zingzin namespace'
+grep -Fq 'shellcheck --severity=warning' "$CI_DIR/quality-check.sh" \
+  || fail 'quality gate must ignore version-dependent informational ShellCheck findings'
 grep -Fq 'org.opencontainers.image.revision' "$CI_DIR/build-images.sh" \
   || fail 'image builds must record the Git revision OCI label'
 grep -Fq 'app/frontend' "$CI_DIR/build-images.sh" \
@@ -98,6 +100,8 @@ expected_stages=(
   'Rollout Verification'
   'Smoke Test'
 )
+grep -A 5 -F "stage('Checkout')" "$JENKINSFILE" | grep -Fq 'retry(3)' \
+  || fail 'Checkout must retry transient Git network failures up to three times'
 stage_count="$(grep -Ec "^[[:space:]]*stage\\('[^']+'\\)" "$JENKINSFILE")"
 [[ "$stage_count" == '9' ]] || fail "Jenkinsfile has $stage_count stages; expected 9"
 previous_line=0

@@ -21,9 +21,11 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
-        script {
+        retry(3) {
+          checkout scm
           sh 'git fetch --no-tags origin main'
+        }
+        script {
           sh 'test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"'
           env.GIT_COMMIT_FULL = sh(
             script: 'git rev-parse HEAD',
