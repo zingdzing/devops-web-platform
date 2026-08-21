@@ -1,4 +1,4 @@
-.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract
+.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify
 
 help:
 	@printf '%s\n' \
@@ -25,7 +25,8 @@ help:
 		'  make phase4-jenkins-logs   Follow Jenkins controller logs' \
 		'  make phase4-jenkins-stop   Stop Jenkins without deleting Jenkins Home' \
 		'  make phase4-kubeconfig     Generate and validate the scoped Jenkins kubeconfig' \
-		'  make phase4-contract       Check Phase 4 files without deploying'
+		'  make phase4-contract       Check Phase 4 files without deploying' \
+		'  make phase4-verify         Run live Phase 4 delivery and restart acceptance'
 
 check:
 	@bash scripts/check-prerequisites.sh
@@ -96,3 +97,6 @@ phase4-kubeconfig:
 
 phase4-contract:
 	@bash scripts/check-phase4-contract.sh
+
+phase4-verify:
+	@bash scripts/verify-phase4.sh

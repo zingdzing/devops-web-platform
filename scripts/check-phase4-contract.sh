@@ -6,6 +6,7 @@ readonly JENKINS_DIR='deploy/jenkins'
 readonly COMPOSE_FILE="$JENKINS_DIR/compose.yaml"
 readonly RBAC_FILE='deploy/kubernetes/jenkins-rbac.yaml'
 readonly KUBECONFIG_SCRIPT='scripts/create-phase4-kubeconfig.sh'
+readonly VERIFY_SCRIPT='scripts/verify-phase4.sh'
 readonly CI_DIR='scripts/ci'
 readonly JENKINSFILE='Jenkinsfile'
 
@@ -32,7 +33,19 @@ done
 
 require_file "$RBAC_FILE"
 require_file "$KUBECONFIG_SCRIPT"
+require_file "$VERIFY_SCRIPT"
 require_file "$JENKINSFILE"
+
+grep -Fq 'set -Eeuo pipefail' "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must use strict Bash mode'
+grep -Fq "docker restart \"\$JENKINS_CONTAINER\"" "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must restart only the Jenkins container'
+grep -Fq '/tmp/devops-platform-phase4-persistence-id' "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must check the recorded persistence marker'
+grep -Fq "readonly APPLICATION_URL='http://localhost:8080'" "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must use the localhost Ingress Host rule'
+grep -Fq 'phase4-verify:' Makefile \
+  || fail 'Makefile must expose the phase4-verify target'
 
 for ci_script in \
   "$CI_DIR/common.sh" \
