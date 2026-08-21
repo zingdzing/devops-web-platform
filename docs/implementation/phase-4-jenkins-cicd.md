@@ -95,3 +95,7 @@ Jenkins 挂载 Docker Socket，等价于较高的宿主 Docker 权限，因此�
 - 最终更新 README、架构和部署文档后运行干净工作树发布门禁。
 
 在这些项目完成前，本文件不把 Phase 4 标记为最终发布完成。
+
+### Poll SCM 触发 checkpoint
+
+本段是一个只修改文档的触发 checkpoint，不改变应用、镜像构建、Helm Chart 或 Kubernetes 资源。推送到 GitHub `main` 后不手动点击 `Build Now`，等待 Jenkins 按 `H/5` 轮询并自动构建该提交；成功后再记录 build number、SHA 和触发原因。
