@@ -93,10 +93,21 @@ Jenkins 挂载 Docker Socket，等价于较高的宿主 Docker 权限，因此�
 
 该次构建在 Deploy 阶段遇到“终止中旧 Pod 被纳入镜像检查”的竞态误报。Helm Revision `15` 和 Kubernetes 工作负载实际已经升级成功；修复与复现证据记录在 `docs/troubleshooting/phase-4-jenkins-cicd.md`。因此自动触发能力已验收，但仍需用修复提交获得一次完整绿色的自动流水线。
 
-## 8. 尚待完成的验收
+## 8. 自动发布最终证据
 
-- 推送 rollout 竞态修复并获得一次完整绿色的 Poll SCM 自动流水线；
-- 完成独立技术审查并处理审查意见；
-- 最终更新 README、架构和部署文档后运行干净工作树发布门禁。
+2026-08-21，修复提交与故障记录推送到 GitHub `main` 后，Jenkins 通过 Poll SCM 自动触发 Build `#7`：
 
-在这些项目完成前，本文件不把 Phase 4 标记为最终发布完成。
+- 触发原因：`SCMTriggerCause`；
+- Git 提交：`e82f13f33f25f1332a2e0fbf20545f9c2b469a88`；
+- Pipeline 结果：`SUCCESS`，九阶段全部绿色；
+- pytest：14 项通过；
+- frontend：`zingzin/devops-web-platform-frontend:git-e82f13f33f25`；
+- backend：`zingzin/devops-web-platform-backend:git-e82f13f33f25`；
+- Helm release：`devops-platform`，Revision `16`，状态 `deployed`；
+- frontend/backend Deployment：`1/1 Ready`，模板镜像与本次标签一致；
+- MySQL StatefulSet：`1/1 Ready`；
+- `/healthz`、`/readyz`、`/api/items` 和持久化标记均通过。
+
+独立审查发现的三个发布阻断项已处理：Poll SCM 已实测，实时验收不再依赖 `/tmp` numeric ID，README/架构/部署入口已更新。凭据使用 System / Global store、Docker Socket 权限和插件版本未逐项锁定作为本地教学环境的公开限制保留，不描述为生产级方案。
+
+Phase 4 至此具备可展示的完整闭环：提交代码、自动测试、质量检查、镜像构建与推送、Kubernetes 发布、rollout、冒烟测试、失败诊断、持久化验收和真实故障复盘。

@@ -41,6 +41,19 @@ make phase3-stop
 
 `make phase3-stop` 停止整个本地 k3d cluster，从而释放 8080；它不删除集群定义、Helm release、Secret 或 PVC。破坏性删除命令及后果见 `docs/runbooks/phase-3-operations.md`。
 
+## Phase 4 操作命令
+
+完成 Jenkins 管理员与两个 Credentials 的一次性配置后：
+
+```bash
+make phase4-jenkins-up
+make phase4-contract
+make phase4-verify
+make phase4-jenkins-stop
+```
+
+向 GitHub `main` 推送提交即可由 Poll SCM 自动构建和发布；不要把 PAT、kubeconfig 或 Jenkins 密码作为命令参数、环境文件或仓库文件。完整启停、凭据轮换、诊断和回滚见 `docs/runbooks/phase-4-jenkins-operations.md`。
+
 ## 数据与密钥边界
 
 - `.env` 被 Git 忽略，且部署前必须是 mode 600；不要写入真实线上凭据。
@@ -55,4 +68,4 @@ Phase 4 的 Docker Hub PAT 和专用 kubeconfig 只存入 Jenkins Credentials。
 
 ## 后续部署内容
 
-`monitoring/` 将在 Phase 5 保存 kube-prometheus-stack values、PrometheusRule 和 Grafana Dashboard。Phase 4 Jenkins 发布代码已实现，只有在完成用户本人持有的凭据设置和端到端验收后，才视为正式完成。
+`monitoring/` 将在 Phase 5 保存 kube-prometheus-stack values、PrometheusRule 和 Grafana Dashboard。Phase 4 已通过手工 Build `#5`、Poll SCM 自动 Build `#7`、Jenkins 重启持久化和真实入口验收；监控能力仍属于后续阶段。

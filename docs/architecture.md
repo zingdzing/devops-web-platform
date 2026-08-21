@@ -46,15 +46,17 @@ MySQL Pod 删除和 StatefulSet 缩容不会删除 PVC，重建后数据仍在�
 
 Phase 3 复用 Phase 2 已验证的应用镜像和相对 URL。Compose DNS 名称 `backend` 也是 Nginx 配置中的明确契约，因此 Kubernetes 后端 Service 固定为 `backend`；项目专用 namespace 避免名称冲突。Compose 命名卷与 Kubernetes PVC 是两套独立的本地数据存储。
 
-## Planned release flow (Phase 4)
+## Implemented release flow (Phase 4)
 
-1. 开发者将变更推送到 GitHub。
-2. Jenkins 检出提交并执行 pytest、ShellCheck、Helm lint 和清单门禁。
-3. 测试通过后构建带提交号的前后端镜像并推送 Docker Hub。
-4. Jenkins 使用明确镜像 tag 执行 Helm upgrade。
-5. 等待 rollout 并执行 HTTP Smoke Test；失败时停止流水线并依据 Runbook 回滚。
+1. Jenkins 使用 `pollSCM('H/5 * * * *')` 发现 GitHub `main` 新提交，并验证工作区 HEAD 等于 `origin/main`。
+2. Pipeline 执行 pytest、ShellCheck、Helm lint、清单和秘密形状门禁，JUnit 与诊断文件作为构建产物保存。
+3. 测试通过后构建 frontend/backend 镜像，以 `git-<sha12>` 作为不可变标签，并写入 OCI revision label。
+4. Jenkins 使用 `dockerhub-ci` 凭据把两个镜像推送到 Docker Hub。
+5. Jenkins 使用 namespace 专用 `k3d-deployer-kubeconfig`，通过 Helm 应用受信任 `main` 中的完整 Chart；CLI 只注入两个镜像 repository/tag。
+6. `kubectl rollout status` 证明新版工作负载可用，再核对 Deployment template 镜像、MySQL StatefulSet 和真实 Ingress 健康/API 路径。
+7. Helm upgrade 自身失败时由 Helm 事务回滚；upgrade 成功后的 Smoke Test 失败会停止流水线并保留诊断，由 Runbook 指导人工确认 revision 后回滚。
 
-该流程尚未实现，当前镜像只构建并导入本地 k3d。
+Jenkins Controller 运行在本地 Docker 容器中，`127.0.0.1:8090` 只对宿主开放，Jenkins Home 使用 named volume 持久化。Docker Socket 允许构建镜像，也意味着较高宿主权限，因此只运行受信任的 `main`，不执行未知 Pull Request Jenkinsfile。
 
 ## Planned monitoring flow (Phase 5)
 

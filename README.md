@@ -4,13 +4,13 @@
 
 ## 当前状态
 
-**Phase 3：Kubernetes 编排与 Helm 标准化部署已完成。**
+**Phase 4：Jenkins CI/CD 自动发布已完成。**
 
-“运维任务清单”运行在本地 k3d/K3s 集群：F5 NGINX Ingress Controller 统一接收入口流量，Nginx frontend 与 Gunicorn/Flask backend 使用 Deployment/Service，MySQL 使用 StatefulSet、headless Service 和 1 Gi PVC。Helm 管理应用声明，自动验收覆盖 CRUD、非 root、Pod 自愈、数据库故障降级、恢复、PVC 持久化与重复升级。
+“运维任务清单”运行在本地 k3d/K3s 集群：F5 NGINX Ingress Controller 统一接收入口流量，Nginx frontend 与 Gunicorn/Flask backend 使用 Deployment/Service，MySQL 使用 StatefulSet、headless Service 和 1 Gi PVC。Helm 管理应用声明，Jenkins 轮询 GitHub `main`，自动测试、构建、检查、推送两个不可变 Docker Hub 镜像，随后部署到 Kubernetes 并执行真实入口冒烟测试。
 
-Jenkins 自动发布属于 Phase 4，Prometheus/Grafana/Alertmanager 属于 Phase 5，目前不把它们描述为已完成能力。
+2026-08-21，Poll SCM 自动触发的 Jenkins Build `#7` 在提交 `e82f13f33f25...` 上九阶段全部成功。Prometheus/Grafana/Alertmanager 属于 Phase 5，目前不把它们描述为已完成能力。
 
-## Phase 3 快速启动
+## 平台首次部署（Phase 3）
 
 前置条件：WSL Ubuntu、Git、Bash、curl、jq、Python 3、Docker、k3d、kubectl、Helm、ShellCheck、Make，以及正在运行的 Docker Desktop。在 WSL 中执行：
 
@@ -41,7 +41,17 @@ make phase3-verify
 6. 删除 MySQL Pod，确认 StatefulSet 重建后 PVC 中的数据仍在。
 7. 重复执行 Helm upgrade，并检查 Git 跟踪文件没有常见 Token、私钥或 Secret 文件。
 
-## Phase 3 请求流
+Phase 4 已完成凭据配置的本地环境还可以执行：
+
+```bash
+make phase4-jenkins-up
+make phase4-contract
+make phase4-verify
+```
+
+向 GitHub `main` 推送提交后，Jenkins 按 `H/5` 轮询自动运行九阶段流水线；Jenkins 页面位于 <http://localhost:8090>。首次安装和凭据设置见 `docs/runbooks/phase-4-jenkins-operations.md`。
+
+## 应用请求流
 
 ```text
 Browser -> 127.0.0.1:8080 -> k3d load balancer
@@ -55,6 +65,17 @@ Browser -> 127.0.0.1:8080 -> k3d load balancer
 - `/readyz`：执行真实数据库连接检查；MySQL 不可用时返回 HTTP 503，Pod 会从 Service 可用端点中移除。
 - `/api/items`：提供运维任务 CRUD。
 
+## CI/CD 发布流
+
+```text
+GitHub main -> Jenkins Poll SCM -> pytest / ShellCheck / Helm checks
+            -> build + verify frontend/backend images
+            -> Docker Hub immutable git-<sha12> tags
+            -> scoped kubeconfig -> Helm upgrade -> rollout -> smoke test
+```
+
+Docker Hub PAT 与 namespace 专用 kubeconfig 只由 Jenkins Credentials 注入。Pipeline 不读取根目录 `.env`，不创建数据库 Secret，也不删除 namespace、PVC 或 Helm release。
+
 ## 常用命令
 
 ```bash
@@ -67,6 +88,10 @@ make phase3-status
 make phase3-logs
 make phase3-verify
 make phase3-stop
+make phase4-jenkins-up
+make phase4-contract
+make phase4-verify
+make phase4-jenkins-stop
 ```
 
 ## 技术栈
@@ -79,7 +104,7 @@ make phase3-stop
 - F5 NGINX Ingress Controller 5.5
 - Deployment、Service、Ingress、StatefulSet、ConfigMap、Secret、PVC、Probe
 - Bash、ShellCheck、Makefile
-- Jenkins Pipeline（Phase 4 计划）
+- Jenkins 2.568、Declarative Pipeline、Credentials、JUnit、Poll SCM
 - Prometheus、Grafana、Alertmanager（Phase 5 计划）
 
 ## 实施路线
@@ -88,7 +113,7 @@ make phase3-stop
 2. Phase 1：静态前端、Flask API、MySQL 初始化与单元测试。✅
 3. Phase 2：Dockerfile、Docker Compose、本地多容器联调。✅
 4. Phase 3：k3d/K3s、NGINX Ingress、Helm Chart、自愈与持久化。✅
-5. Phase 4：Jenkins 测试、构建、推送、部署和验证流水线。
+5. Phase 4：Jenkins 测试、构建、推送、部署和验证流水线。✅
 6. Phase 5：Prometheus 指标、Grafana 仪表盘和 Alertmanager 告警。
 7. Phase 6：失败发布回滚演练、Runbook 完善与项目复盘。
 
@@ -108,6 +133,9 @@ make phase3-stop
 - 为保护已有 MySQL PVC，当前阶段不支持直接修改数据库名、用户或密码；部署脚本会拒绝这类变化。
 - 当前只有一个节点、一个 frontend、一个 backend 和一个 MySQL。它能演示 Pod 自愈，但不是零停机或生产级高可用。
 - PVC 使用本地 `local-path`；删除整个 k3d cluster 会丢失该集群中的数据库数据。
+- Jenkins 仅绑定本机，但挂载 Docker Socket，适合受信任的个人实验环境，不是生产级隔离。
+- 两个 Jenkins 凭据当前位于 System / Global store；生产或多人共享环境应改为 Folder 级凭据或独立 Controller。
+- `plugins.txt` 固定插件集合但未逐项固定插件版本；Jenkins 基础镜像已固定，完整可复现的生产方案还应锁定插件版本。
 
 ## 项目原则
 
