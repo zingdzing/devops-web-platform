@@ -96,3 +96,25 @@ Edge 在 Jenkins 登录页自动填入 Docker Hub 用户名 `zingzin`，登录�
 **预防**
 
 密码管理器中使用清晰条目名称，例如“Local Jenkins 8090”和“Docker Hub”，并保持密码互不相同。
+
+## 6. Poll SCM 自动构建在 rollout 后误报旧 Pod 镜像
+
+**现象**
+
+GitHub `main` 推送 `04888e5348f3...` 后，Jenkins 通过 Poll SCM 自动触发 Build `#6`。Checkout、测试、质量、镜像构建、镜像检查和推送均成功，Helm Revision `15` 也完成升级，但 Deploy 阶段报告 backend 仍为上一个标签 `git-43e572a724e4`。
+
+**安全证据**
+
+失败后的 Helm values、Deployment 模板、当前 Ready Pod 和 ReplicaSet 均已使用 `git-04888e5348f3`。Kubernetes 事件显示新版 backend Ready 后，旧 backend Pod 才进入终止流程。
+
+**根因**
+
+`kubectl rollout status` 成功后，部署脚本继续枚举该组件的全部 Pod，并要求每个 Pod 都使用新镜像。滚动更新交接瞬间，旧 Pod 可能仍短暂出现在 API 列表中，因此脚本把正常的终止中 Pod 当成当前工作负载，产生竞态误报。
+
+**修正**
+
+保留 `kubectl rollout status` 作为新版可用性门禁；随后核对 Deployment Pod template 的声明镜像是否等于本次不可变标签。修复后以受限 `jenkins-deployer` kubeconfig 执行 `--verify-only`，前后端 rollout 与镜像核验均通过。
+
+**预防**
+
+Phase 4 合同检查要求部署核验读取 Deployment template，并禁止在 rollout 成功后通过枚举过渡期 Pod 判定版本。Pod 健康仍由 rollout、readiness/startup probe 和 Smoke Test 共同证明。

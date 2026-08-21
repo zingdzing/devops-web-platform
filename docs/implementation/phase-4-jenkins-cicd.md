@@ -34,7 +34,7 @@ Jenkins 管理员用户名是 `zing`；Docker Hub namespace 是 `zingzin`。密�
 5. `Image Verification`：检查非 root、Nginx、Gunicorn/Flask 和生产依赖。
 6. `Push Images`：使用 Jenkins Credential `dockerhub-ci` 推送 Docker Hub。
 7. `Deploy`：使用 `k3d-deployer-kubeconfig` 执行受保护的 Helm upgrade。
-8. `Rollout Verification`：验证 Deployment、StatefulSet 和实际 Pod 镜像。
+8. `Rollout Verification`：验证 Deployment、StatefulSet、rollout 状态和 Deployment 模板镜像。
 9. `Smoke Test`：从真实 Ingress 检查健康、就绪、页面和 `/api/items`。
 
 Pipeline 总超时 30 分钟、禁止并发部署同一 release、保留最近 20 次构建，并配置 `pollSCM('H/5 * * * *')`。
@@ -87,15 +87,16 @@ ServiceAccount 不具备 Node 或集群级 Namespace 读取权限。Helm release
 
 Jenkins 挂载 Docker Socket，等价于较高的宿主 Docker 权限，因此只构建可信公开仓库的 `main`，不执行未知 Pull Request Jenkinsfile，也不通过公网隧道暴露 Jenkins。
 
-## 7. 尚待完成的验收
+## 7. Poll SCM 自动触发证据
 
-- 用本次文档提交验证 Poll SCM 自动发现 GitHub `main` 新提交；
-- 记录自动触发的 Jenkins build number 和 SHA；
+2026-08-21，推送提交 `04888e5348f3...` 后，Jenkins 自动创建 Build `#6`，触发原因记录为 `SCMTriggerCause`，证明 `pollSCM('H/5 * * * *')` 能发现 GitHub `main` 新提交，无需手动点击 `Build Now`。
+
+该次构建在 Deploy 阶段遇到“终止中旧 Pod 被纳入镜像检查”的竞态误报。Helm Revision `15` 和 Kubernetes 工作负载实际已经升级成功；修复与复现证据记录在 `docs/troubleshooting/phase-4-jenkins-cicd.md`。因此自动触发能力已验收，但仍需用修复提交获得一次完整绿色的自动流水线。
+
+## 8. 尚待完成的验收
+
+- 推送 rollout 竞态修复并获得一次完整绿色的 Poll SCM 自动流水线；
 - 完成独立技术审查并处理审查意见；
 - 最终更新 README、架构和部署文档后运行干净工作树发布门禁。
 
 在这些项目完成前，本文件不把 Phase 4 标记为最终发布完成。
-
-### Poll SCM 触发 checkpoint
-
-本段是一个只修改文档的触发 checkpoint，不改变应用、镜像构建、Helm Chart 或 Kubernetes 资源。推送到 GitHub `main` 后不手动点击 `Build Now`，等待 Jenkins 按 `H/5` 轮询并自动构建该提交；成功后再记录 build number、SHA 和触发原因。
