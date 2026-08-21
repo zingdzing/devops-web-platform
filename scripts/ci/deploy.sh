@@ -66,23 +66,21 @@ mysql_ready="$(kubectl --kubeconfig "$KUBECONFIG" get \
   --output 'jsonpath={.status.readyReplicas}')"
 [[ "$mysql_ready" == '1' ]] || ci_fail 'MySQL StatefulSet does not have one ready replica'
 
-verify_component_image() {
+verify_deployment_image() {
   local component="$1"
-  local expected_image="$2"
-  local actual_image
+  local deployment="$2"
+  local expected_image="$3"
+  local deployment_image
 
-  mapfile -t actual_images < <(
-    kubectl --kubeconfig "$KUBECONFIG" get pods --namespace "$CI_NAMESPACE" \
-      --selector "app.kubernetes.io/instance=$CI_RELEASE,app.kubernetes.io/component=$component" \
-      --output 'jsonpath={range .items[*]}{.spec.containers[0].image}{"\n"}{end}'
-  )
-  [[ "${#actual_images[@]}" -gt 0 ]] || ci_fail "no $component Pod was found"
-  for actual_image in "${actual_images[@]}"; do
-    [[ "$actual_image" == "$expected_image" ]] \
-      || ci_fail "$component Pod image is $actual_image; expected $expected_image"
-  done
+  deployment_image="$(kubectl --kubeconfig "$KUBECONFIG" get \
+    "deployment/$deployment" --namespace "$CI_NAMESPACE" \
+    --output 'jsonpath={.spec.template.spec.containers[0].image}')"
+  [[ "$deployment_image" == "$expected_image" ]] \
+    || ci_fail "$component Deployment image is $deployment_image; expected $expected_image"
 }
 
-verify_component_image frontend "$CI_FRONTEND_REPOSITORY:$IMAGE_TAG"
-verify_component_image backend "$CI_BACKEND_REPOSITORY:$IMAGE_TAG"
-ci_log 'Helm rollout and actual Pod image checks passed'
+verify_deployment_image frontend "$CI_FRONTEND_DEPLOYMENT" \
+  "$CI_FRONTEND_REPOSITORY:$IMAGE_TAG"
+verify_deployment_image backend "$CI_BACKEND_DEPLOYMENT" \
+  "$CI_BACKEND_REPOSITORY:$IMAGE_TAG"
+ci_log 'Helm rollout and Deployment template image checks passed'

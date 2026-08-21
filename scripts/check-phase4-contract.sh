@@ -101,8 +101,11 @@ for required_deploy_option in \
   grep -Fq -- "$required_deploy_option" "$CI_DIR/deploy.sh" \
     || fail "protected Helm deployment option is missing: $required_deploy_option"
 done
-grep -Fq 'actual_image' "$CI_DIR/deploy.sh" \
-  || fail 'actual Pod image comparison is missing'
+grep -Fq 'deployment_image' "$CI_DIR/deploy.sh" \
+  || fail 'Deployment template image comparison is missing'
+if grep -Fq 'get pods' "$CI_DIR/deploy.sh"; then
+  fail 'rollout verification must not inspect transitional Pods after rollout status succeeds'
+fi
 if grep -Eq 'get[[:space:]]+namespace([[:space:]]|\")' "$CI_DIR/deploy.sh"; then
   fail 'deploy script must not require cluster-scoped Namespace read permission'
 fi
