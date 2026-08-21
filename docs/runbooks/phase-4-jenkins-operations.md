@@ -3,7 +3,7 @@
 本手册面向本地学习环境。所有命令都假定刚打开 Ubuntu 终端；先进入 Phase 4 工作树：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 ```
 
 不要把 Jenkins 密码、Docker Hub PAT、恢复码、ServiceAccount token、kubeconfig 或 `.env` 发给他人，也不要提交到 Git。
@@ -13,21 +13,21 @@ cd ~/projects/devops-web-platform-phase4
 启动并等待健康：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 make phase4-jenkins-up
 ```
 
 浏览器访问 `http://localhost:8090`。查看日志：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 make phase4-jenkins-logs
 ```
 
 按 `Ctrl+C` 只退出日志跟随，不会停止 Jenkins。安全停止：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 make phase4-jenkins-stop
 ```
 
@@ -38,7 +38,7 @@ make phase4-jenkins-stop
 只在自己的终端读取一次性解锁值：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 docker exec devops-platform-jenkins \
   cat /var/jenkins_home/secrets/initialAdminPassword
 ```
@@ -56,6 +56,8 @@ Jenkins 只保存两个项目凭据：
 | `dockerhub-ci` | Username with password | 用户名 `zingzin`，Password 填 Docker Hub PAT | 只在 Push Images 阶段登录 Docker Hub |
 | `k3d-deployer-kubeconfig` | Secret file | 临时生成的专用 kubeconfig 文件 | 只在部署、验证和失败诊断时访问目标 namespace |
 
+当前本地单控制器把这两个凭据保存在 Jenkins `System / Global` store，因此同一控制器上的其他 Job 理论上也可引用它们。这是为了降低初学阶段 UI 配置复杂度而接受的本地限制；生产或多人共享 Jenkins 应改为 Folder 级凭据或独立 Controller。
+
 不要在 Pipeline 全局 `environment` 中保存凭据，也不要在 Console Log 中打印它们。
 
 ### Docker Hub PAT 轮换
@@ -72,7 +74,7 @@ PAT 不是 Docker Hub 登录密码，也不是 Jenkins 密码。忘记 PAT 时�
 轮换会让旧 kubeconfig 立即失效，应安排在没有 Pipeline 运行时：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 kubectl delete secret jenkins-deployer-token -n devops-platform
 make phase4-kubeconfig
 ```
@@ -90,7 +92,7 @@ rm -f -- /tmp/devops-platform-jenkins-kubeconfig
 先看 Jenkins 对应 Stage、JUnit 结果和归档的 `reports/`。查看当前资源：
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 kubectl get pods,svc,ingress,pvc -n devops-platform
 helm history devops-platform -n devops-platform
 ```
@@ -111,16 +113,17 @@ helm rollback devops-platform <revision> -n devops-platform --wait
 - Jenkins 容器挂载 Docker Socket。获得 Jenkins 管理权限的人实际上可控制宿主 Docker，因此本方案只适合受信任的本地仓库 `main`，不运行未知 Pull Request 的 Jenkinsfile。
 - `jenkins-deployer` 使用 namespace 级 Role，不能读取 Node 或管理集群级资源。
 - Helm 默认把 Release 状态保存在同 namespace 的 Secret 中。标准 RBAC 无法只允许 Helm Release Secret、同时绝对禁止数据库 Secret，因此该身份在 `devops-platform` 内仍具有 Secret 权限；Jenkinsfile 的行为约束是不读取或修改数据库 Secret 内容。
-- 数据库 Secret 和 PVC 由 Phase 3 保留。Pipeline 只覆盖前后端镜像 repository/tag，不从根目录 `.env` 创建数据库身份。
+- 数据库 Secret 和 PVC 由 Phase 3 保留。Pipeline 的 CLI 只注入前后端镜像 repository/tag，但 Helm 会应用受信任 `main` 中的完整 Chart；Chart 不从根目录 `.env` 创建数据库身份。
 - 本地 ServiceAccount token 是长期令牌，便于教学演示；真实生产环境应使用短期身份、外部凭据系统或云工作负载身份。
 
 ## 6. 常用健康检查
 
 ```bash
-cd ~/projects/devops-web-platform-phase4
+cd ~/projects/devops-web-platform
 docker inspect --format '{{.State.Health.Status}}' devops-platform-jenkins
 curl --fail http://127.0.0.1:8090/login >/dev/null
 make phase4-contract
+make phase4-verify
 ```
 
-预期 Jenkins 为 `healthy`，登录页可访问，Phase 4 contract 通过。
+预期 Jenkins 为 `healthy`，登录页可访问，Phase 4 contract 与实时验收通过。`phase4-verify` 会从 `/api/items` 按唯一标题查找持久化任务，不依赖 `/tmp` ID 文件；它会只重启 Jenkins 容器一次，并验证 Job、构建历史、管理员用户、两个 Credential ID 和业务数据仍存在。

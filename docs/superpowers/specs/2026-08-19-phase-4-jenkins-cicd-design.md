@@ -233,7 +233,7 @@ host.docker.internal:8080 -> F5 NGINX Ingress -> app -> MySQL
 | `dockerhub-ci` | Username with password | 用户名为Docker ID，password字段保存Read & Write PAT |
 | `k3d-deployer-kubeconfig` | Secret file | 访问现有本地k3d的专用ServiceAccount kubeconfig |
 
-凭据定义在项目Folder可用的最低范围。Pipeline只使用Credential ID，不包含真实值；Secret file绑定在工作区外的临时目录，任务结束后删除。
+当前本地单控制器把凭据保存在 Jenkins `System / Global` store，以降低首次 UI 配置复杂度；这是已知的本地教学限制，同一控制器上的其他 Job 理论上也可引用。Pipeline只使用Credential ID，不包含真实值；Secret file绑定在工作区外的临时目录，任务结束后删除。生产或多人共享 Jenkins 应改为 Folder 级凭据或独立 Controller。
 
 ### 6.2 Jenkins不持有的内容
 
@@ -272,7 +272,7 @@ Helm默认把Release状态保存为同命名空间Secret。标准RBAC不能按�
 
 ### 7.2 重试策略
 
-- Git检出和Python依赖下载最多重试2次；
+- Git检出最多重试3次；Python依赖安装失败时立即停止，由操作者确认网络或依赖源后重新构建；
 - Docker Hub push最多重试3次；
 - Ingress健康检查在约60秒条件轮询内重试；
 - Kubernetes rollout/Helm等待有明确5分钟上限；

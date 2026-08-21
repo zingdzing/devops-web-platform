@@ -40,8 +40,14 @@ grep -Fq 'set -Eeuo pipefail' "$VERIFY_SCRIPT" \
   || fail 'Phase 4 verifier must use strict Bash mode'
 grep -Fq "docker restart \"\$JENKINS_CONTAINER\"" "$VERIFY_SCRIPT" \
   || fail 'Phase 4 verifier must restart only the Jenkins container'
-grep -Fq '/tmp/devops-platform-phase4-persistence-id' "$VERIFY_SCRIPT" \
-  || fail 'Phase 4 verifier must check the recorded persistence marker'
+grep -Fq "readonly PERSISTENCE_TITLE='Phase 4 pipeline persistence'" "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must discover the unique persistence marker from the API'
+grep -Fq "readonly EXPECTED_CONTEXT='k3d-devops-platform'" "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must pin the expected administrator context'
+grep -Fq 'Jenkins build history did not survive' "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must check Jenkins build-history persistence'
+grep -Fq 'Jenkins credential ID did not survive' "$VERIFY_SCRIPT" \
+  || fail 'Phase 4 verifier must check credential-ID persistence without reading values'
 grep -Fq "readonly APPLICATION_URL='http://localhost:8080'" "$VERIFY_SCRIPT" \
   || fail 'Phase 4 verifier must use the localhost Ingress Host rule'
 grep -Fq 'phase4-verify:' Makefile \
@@ -143,6 +149,10 @@ for pipeline_contract in \
   grep -Fq "$pipeline_contract" "$JENKINSFILE" \
     || fail "Jenkinsfile contract is missing: $pipeline_contract"
 done
+
+if grep -Fq 'allowEmptyResults: true' "$JENKINSFILE"; then
+  fail 'missing JUnit reports must fail the Pipeline'
+fi
 
 if grep -Eq '(^|[[:space:]])(source|\.)[[:space:]]+([^[:space:]]*/)?\.env([[:space:]]|$)' "$CI_DIR"/*.sh; then
   fail 'CI scripts must not source the root .env file'

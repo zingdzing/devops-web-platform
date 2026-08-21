@@ -13,7 +13,8 @@ readonly BACKEND_DEPLOYMENT='devops-platform-devops-web-platform-backend'
 readonly MYSQL_STATEFULSET='devops-platform-devops-web-platform-mysql'
 readonly FRONTEND_REPOSITORY='zingzin/devops-web-platform-frontend'
 readonly BACKEND_REPOSITORY='zingzin/devops-web-platform-backend'
-readonly PERSISTENCE_ID_FILE='/tmp/devops-platform-phase4-persistence-id'
+readonly EXPECTED_CONTEXT='k3d-devops-platform'
+readonly PERSISTENCE_TITLE='Phase 4 pipeline persistence'
 readonly JENKINS_JOB_CONFIG='/var/jenkins_home/jobs/devops-web-platform/jobs/main/config.xml'
 
 fail() {
@@ -49,6 +50,10 @@ wait_for_jenkins() {
 for command_name in curl docker helm jq kubectl; do
   require_command "$command_name"
 done
+
+current_context="$(kubectl config current-context)"
+[[ "$current_context" == "$EXPECTED_CONTEXT" ]] \
+  || fail "kubectl context must be $EXPECTED_CONTEXT"
 
 log 'Checking the persistent Jenkins controller boundary'
 [[ "$(docker inspect --format '{{.State.Running}}' "$JENKINS_CONTAINER")" == 'true' ]] \
@@ -125,20 +130,30 @@ grep -Fq 'DEVOPS WEB PLATFORM · PHASE 4' <<<"$page_body" \
 items_json="$(curl --fail --silent --show-error "$APPLICATION_URL/api/items")"
 jq -e 'type == "array"' <<<"$items_json" >/dev/null \
   || fail '/api/items did not return a JSON array'
-[[ -r "$PERSISTENCE_ID_FILE" ]] \
-  || fail "persistence marker file is missing: $PERSISTENCE_ID_FILE"
-persistence_id="$(tr -d '[:space:]' <"$PERSISTENCE_ID_FILE")"
+matching_markers="$(jq --arg title "$PERSISTENCE_TITLE" \
+  '[.[] | select(.title == $title)] | length' <<<"$items_json")"
+[[ "$matching_markers" == '1' ]] \
+  || fail "expected exactly one persistence marker titled: $PERSISTENCE_TITLE"
+persistence_id="$(jq -r --arg title "$PERSISTENCE_TITLE" \
+  '.[] | select(.title == $title) | .id' <<<"$items_json")"
 [[ "$persistence_id" =~ ^[0-9]+$ ]] || fail 'persistence marker ID is invalid'
-jq -e --argjson marker_id "$persistence_id" \
-  'any(.[]; .id == $marker_id and .title == "Phase 4 pipeline persistence")' \
-  <<<"$items_json" >/dev/null \
-  || fail "persistence marker $persistence_id was not returned by the API"
 
 log 'Restarting only Jenkins and checking controller persistence'
 docker restart "$JENKINS_CONTAINER" >/dev/null
 wait_for_jenkins
 docker exec "$JENKINS_CONTAINER" test -f "$JENKINS_JOB_CONFIG" \
   || fail 'Jenkins Pipeline Job did not survive the controller restart'
+docker exec "$JENKINS_CONTAINER" sh -c \
+  'find /var/jenkins_home/jobs/devops-web-platform/jobs/main/builds -mindepth 2 -maxdepth 2 -name build.xml -print -quit | grep -q .' \
+  || fail 'Jenkins build history did not survive the controller restart'
+docker exec "$JENKINS_CONTAINER" grep -RFq '<id>zing</id>' /var/jenkins_home/users \
+  || fail 'Jenkins administrator did not survive the controller restart'
+for credential_id in dockerhub-ci k3d-deployer-kubeconfig; do
+  docker exec "$JENKINS_CONTAINER" sh -c \
+    'grep -RFq -- "$1" /var/jenkins_home/credentials.xml /var/jenkins_home/jobs/devops-web-platform 2>/dev/null' \
+    sh "<id>$credential_id</id>" \
+    || fail "Jenkins credential ID did not survive the controller restart: $credential_id"
+done
 post_restart_items="$(curl --fail --silent --show-error "$APPLICATION_URL/api/items")"
 jq -e --argjson marker_id "$persistence_id" \
   'any(.[]; .id == $marker_id and .title == "Phase 4 pipeline persistence")' \

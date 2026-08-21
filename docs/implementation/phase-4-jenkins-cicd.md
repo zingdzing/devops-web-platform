@@ -63,8 +63,8 @@ Pipeline 总超时 30 分钟、禁止并发部署同一 release、保留最近 2
 - 两个公共 Docker Hub manifest 可读取；
 - Helm 状态、rollout、StatefulSet 和 Pod 实际镜像一致；
 - `/healthz`、`/readyz`、首页 Phase 4 标记和 `/api/items` 正常；
-- 持久化记录 `TASK-017`（numeric ID `17`）仍存在；
-- 只重启 Jenkins 容器后，Pipeline Job 和 `TASK-017` 仍存在。
+- 从 API 按唯一标题发现持久化记录 `TASK-017`（numeric ID `17`）；
+- 只重启 Jenkins 容器后，Pipeline Job、构建历史、管理员用户、两个 Credential ID 和 `TASK-017` 仍存在。
 
 验收输出摘要：
 
@@ -80,6 +80,8 @@ Jenkins 只保存：
 
 - `dockerhub-ci`：Docker Hub 用户名与有限期 Read & Write PAT；
 - `k3d-deployer-kubeconfig`：`devops-platform` namespace 专用 ServiceAccount kubeconfig。
+
+当前两个凭据位于本地单控制器的 `System / Global` store，而不是 Folder store；同一控制器上的其他 Job 理论上也可引用。这是为了控制初学项目复杂度而接受并公开的限制，生产或共享 Jenkins 应使用 Folder 级凭据或独立 Controller。
 
 ServiceAccount 不具备 Node 或集群级 Namespace 读取权限。Helm release 状态也存储为同 namespace Secret，因此该身份在 namespace 内仍需要 Secret 权限；这是本地教学环境的明确限制，不描述为生产级强隔离。
 

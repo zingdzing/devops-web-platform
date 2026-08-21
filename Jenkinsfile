@@ -44,7 +44,7 @@ pipeline {
       }
       post {
         always {
-          junit testResults: 'reports/pytest.xml', allowEmptyResults: true
+          junit testResults: 'reports/pytest.xml'
         }
       }
     }
