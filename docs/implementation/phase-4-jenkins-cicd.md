@@ -111,3 +111,44 @@ Jenkins 挂载 Docker Socket，等价于较高的宿主 Docker 权限，因此�
 独立审查发现的三个发布阻断项已处理：Poll SCM 已实测，实时验收不再依赖 `/tmp` numeric ID，README/架构/部署入口已更新。凭据使用 System / Global store、Docker Socket 权限和插件版本未逐项锁定作为本地教学环境的公开限制保留，不描述为生产级方案。
 
 Phase 4 至此具备可展示的完整闭环：提交代码、自动测试、质量检查、镜像构建与推送、Kubernetes 发布、rollout、冒烟测试、失败诊断、持久化验收和真实故障复盘。
+
+## 9. 最终发布 Build #8
+
+最终文档提交 `82196413b67b9e0537c337a3090a491da113f6b6` 推送后，Poll SCM 自动触发 Build `#8`：
+
+- 触发原因：`SCMTriggerCause`；
+- Pipeline 结果：`SUCCESS`，九阶段全部绿色；
+- pytest：14 项，errors/failures/skipped 均为 0；
+- frontend：`zingzin/devops-web-platform-frontend:git-82196413b67b`；
+- backend：`zingzin/devops-web-platform-backend:git-82196413b67b`；
+- 两个镜像的 OCI revision 均为完整提交 `82196413...`。
+
+抽查 #8 制品时发现成功构建重复归档 #6 旧 Kubernetes 诊断的问题。该问题不影响发布状态，但影响证据准确性，已通过 Checkout 前 `deleteDir()` 和合同回归检查修正，并记录在 Phase 4 排障文档。
+
+## 10. 设计与实际结果对照
+
+| 设计项 | 实际结果 | 结论 |
+|---|---|---|
+| Jenkins 固定版本、本机 8090、Home 持久化 | Controller 运行于容器，Jenkins Home 使用 named volume，重启后 Job/历史/用户/凭据 ID 保留 | 一致 |
+| 两个 Docker Hub 公共仓库和 Git SHA 标签 | frontend/backend 均使用 `git-<sha12>`，OCI revision 可追溯 | 一致 |
+| Poll SCM，不增加公网 webhook | Build #6、#7、#8 均记录 `SCMTriggerCause` | 一致 |
+| 九阶段 fail-fast Pipeline | 测试、质量、构建、镜像验证、推送、部署、rollout、冒烟测试均已实测 | 一致 |
+| namespace 专用 Kubernetes 身份 | ServiceAccount 不能读 Node/Namespace，可完成目标 namespace 的 Helm 操作 | 基本一致；标准 Helm Secret 权限范围已公开 |
+| 凭据放在项目 Folder 最小范围 | 实际使用 System / Global store | 有出入；为本地单 Controller 教学环境接受，生产应收紧 |
+| 失败诊断和证据归档 | 真实记录 Checkout TLS、ShellCheck、RBAC、Ingress Host、rollout 竞态和陈旧制品问题 | 达成并超过原设计，但增加了两次回归修复 |
+| 自动回滚 | Helm upgrade 自身失败时事务回滚；Smoke Test 失败后保留现场、由 Runbook 人工确认 revision | 与最终确认的安全边界一致 |
+| 可复现 Jenkins 插件 | 固定插件集合，未逐项锁定插件版本 | 有出入/限制；不阻断初级项目，生产方案应锁版本 |
+
+总体上，核心交付流与设计一致；差异集中在凭据作用域和插件版本锁定，均已明确写为教学环境限制，没有包装成生产级能力。
+
+## 11. 当前路线图状态
+
+- Phase 0：环境、仓库、GitHub/SSH/2FA。完成。
+- Phase 1：Flask、MySQL、CRUD、前端、pytest。完成。
+- Phase 2：Dockerfile、Compose、多容器联调与持久化。完成。
+- Phase 3：k3d/Kubernetes、NGINX Ingress、Helm、自愈与 PVC。完成。
+- Phase 4：Jenkins CI/CD、Docker Hub、RBAC、自动部署与验收。完成。
+- Phase 5：Prometheus 指标、Grafana 仪表盘、Alertmanager 告警。未实施，下一阶段。
+- Phase 6：失败发布/回滚演练、Runbook 收尾、项目复盘和简历最终材料。未实施。
+
+当前项目已经满足“完整 DevOps 发布链路”的简历主干。仍缺少的是运行后的可观测性和主动告警，而不是业务功能。

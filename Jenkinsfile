@@ -21,6 +21,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
+        deleteDir()
         retry(3) {
           checkout scm
           sh 'git fetch --no-tags origin main'

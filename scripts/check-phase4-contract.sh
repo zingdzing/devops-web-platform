@@ -129,6 +129,8 @@ expected_stages=(
 )
 grep -A 5 -F "stage('Checkout')" "$JENKINSFILE" | grep -Fq 'retry(3)' \
   || fail 'Checkout must retry transient Git network failures up to three times'
+grep -A 5 -F "stage('Checkout')" "$JENKINSFILE" | grep -Fq 'deleteDir()' \
+  || fail 'Checkout must clear the previous workspace before creating new reports'
 stage_count="$(grep -Ec "^[[:space:]]*stage\\('[^']+'\\)" "$JENKINSFILE")"
 [[ "$stage_count" == '9' ]] || fail "Jenkinsfile has $stage_count stages; expected 9"
 previous_line=0

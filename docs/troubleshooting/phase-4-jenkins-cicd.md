@@ -118,3 +118,21 @@ GitHub `main` 推送 `04888e5348f3...` 后，Jenkins 通过 Poll SCM 自动触�
 **预防**
 
 Phase 4 合同检查要求部署核验读取 Deployment template，并禁止在 rollout 成功后通过枚举过渡期 Pod 判定版本。Pod 健康仍由 rollout、readiness/startup probe 和 Smoke Test 共同证明。
+
+## 7. 成功构建重复归档旧 Kubernetes 诊断
+
+**现象**
+
+Build `#8` 本身由 Poll SCM 自动触发且结果为 `SUCCESS`，但其归档的 `kubernetes-diagnostics.txt` 仍写着 Build `#6`、提交 `04888e5348f3...` 和 Helm Revision `15`。
+
+**根因**
+
+Kubernetes 诊断只在失败时生成；Jenkins 重用同一个 workspace，而 Checkout 前没有清理目录。Build `#6` 留下的诊断文件因此跨越 Build `#7/#8` 存在，并被 `archiveArtifacts reports/**/*` 再次归档。部署、测试和镜像并未失败，但证据文件已经陈旧。
+
+**修正**
+
+在 Checkout 的第一次操作中调用 Jenkins `deleteDir()`，随后再检出 Git 仓库。每次 Pipeline 都从空 workspace 开始，测试报告、镜像清单和失败诊断只能来自当前构建。
+
+**预防**
+
+Phase 4 合同检查要求 Checkout 包含 `deleteDir()`。验收构建时不仅看 Stage 颜色，还抽查归档文件中的 `build_number`、`git_commit` 和当前 Build 是否一致。
