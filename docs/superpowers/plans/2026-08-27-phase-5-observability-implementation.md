@@ -488,9 +488,9 @@ git commit -m "test: verify observability and alert recovery"
 - Consumes: 实际执行输出、真实 Target/Rule/Alert 状态和 Jenkins 构建证据。
 - Produces: 可复现 Runbook、仅记录真实事故的 troubleshooting、Phase 5 独立技术复核结论和简历可用事实。
 
-- [ ] **Step 1: 把设计状态改为已确认**
+- [ ] **Step 1: 核对设计确认状态**
 
-将 spec 的状态改为 `已确认，进入实施`，保留确认日期，不改写已经批准的范围。
+确认 spec 的状态保持为 `已确认，进入实施`，确认日期和已经批准的范围没有被后续实施改写。
 
 - [ ] **Step 2: 编写实施记录**
 
