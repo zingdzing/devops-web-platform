@@ -42,13 +42,23 @@ helm repo update prometheus-community >/dev/null
 
 printf '[phase5-install] Installing pinned chart %s with local trimmed values.\n' \
   "$CHART_VERSION"
-helm upgrade --install "$RELEASE" "$CHART" \
-  --version "$CHART_VERSION" \
-  --namespace "$NAMESPACE" \
-  --create-namespace \
-  --values "$VALUES_FILE" \
-  --wait \
-  --timeout 12m
+helm_apply() {
+  helm upgrade --install "$RELEASE" "$CHART" \
+    --version "$CHART_VERSION" \
+    --namespace "$NAMESPACE" \
+    --create-namespace \
+    --values "$VALUES_FILE" \
+    --wait \
+    --timeout 12m
+}
+
+if ! helm_apply; then
+  printf '[phase5-install] First Helm wait failed; allowing slow first-time image pulls to finish before one safe retry.\n' >&2
+  kubectl wait pod -n "$NAMESPACE" \
+    -l app.kubernetes.io/instance="$RELEASE" \
+    --for=condition=Ready --timeout=10m || true
+  helm_apply
+fi
 
 while IFS= read -r workload; do
   [[ -n "$workload" ]] || continue
