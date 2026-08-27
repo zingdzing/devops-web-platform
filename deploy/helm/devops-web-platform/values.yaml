@@ -25,6 +25,11 @@ ingress:
   enabled: true
   className: nginx
 
+monitoring:
+  enabled: false
+  releaseLabel: kube-prometheus-stack
+  interval: 30s
+
 mysql:
   database: ops_tasks
   storageClassName: local-path

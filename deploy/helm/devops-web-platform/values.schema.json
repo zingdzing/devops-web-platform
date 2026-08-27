@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "additionalProperties": false,
-  "required": ["existingSecret", "images", "services", "ingress", "mysql", "resources"],
+  "required": ["existingSecret", "images", "services", "ingress", "monitoring", "mysql", "resources"],
   "properties": {
     "nameOverride": {"type": "string"},
     "fullnameOverride": {"type": "string"},
@@ -34,6 +34,16 @@
       "properties": {
         "enabled": {"type": "boolean"},
         "className": {"const": "nginx"}
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "releaseLabel", "interval"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "releaseLabel": {"type": "string", "minLength": 1},
+        "interval": {"type": "string", "pattern": "^[0-9]+(ms|s|m|h)$"}
       }
     },
     "mysql": {
