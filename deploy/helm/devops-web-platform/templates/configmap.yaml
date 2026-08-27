@@ -6,5 +6,6 @@ metadata:
     {{- include "devops-web-platform.labels" . | nindent 4 }}
 data:
   DB_HOST: "{{ include "devops-web-platform.fullname" . }}-mysql"
+  APP_VERSION: {{ .Values.images.backend.tag | quote }}
   DB_PORT: "{{ .Values.services.mysqlPort }}"
   DB_NAME: "{{ .Values.mysql.database }}"

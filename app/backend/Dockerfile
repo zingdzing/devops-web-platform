@@ -19,7 +19,7 @@ RUN groupadd --gid 10001 app \
 
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
-COPY --chown=app:app __init__.py app.py config.py db.py routes.py ./
+COPY --chown=app:app __init__.py app.py config.py db.py metrics.py routes.py ./
 
 USER 10001:10001
 EXPOSE 5000
@@ -27,4 +27,4 @@ EXPOSE 5000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 \
   CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/healthz', timeout=2)"]
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--access-logfile", "-", "--error-logfile", "-", "app:create_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--access-logfile", "-", "--error-logfile", "-", "app:create_app()"]

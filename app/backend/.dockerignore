@@ -5,4 +5,5 @@
 !app.py
 !config.py
 !db.py
+!metrics.py
 !routes.py

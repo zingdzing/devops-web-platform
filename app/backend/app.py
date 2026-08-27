@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 
 from config import load_config
 from db import Database
+from metrics import register_metrics
 from routes import api
 
 
@@ -38,6 +39,8 @@ def create_app(test_config=None, database=None):
             ),
             503,
         )
+
+    register_metrics(app)
 
     return app
 

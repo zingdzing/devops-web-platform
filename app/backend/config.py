@@ -10,4 +10,5 @@ def load_config():
         "DB_PASSWORD": os.getenv("DB_PASSWORD", ""),
         "FLASK_HOST": os.getenv("FLASK_HOST", "127.0.0.1"),
         "FLASK_PORT": int(os.getenv("FLASK_PORT", "5000")),
+        "APP_VERSION": os.getenv("APP_VERSION", "development"),
     }
