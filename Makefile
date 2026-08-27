@@ -1,4 +1,4 @@
-.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify phase5-contract phase5-grafana-secret phase5-install
+.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify phase5-contract phase5-grafana-secret phase5-install phase5-prometheus phase5-grafana phase5-alertmanager phase5-status
 
 help:
 	@printf '%s\n' \
@@ -29,7 +29,11 @@ help:
 		'  make phase4-verify         Run live Phase 4 delivery and restart acceptance' \
 		'  make phase5-contract       Check Phase 5 monitoring resources without deploying' \
 		'  make phase5-grafana-secret Create or rotate the local Grafana admin Secret' \
-		'  make phase5-install        Install the pinned trimmed monitoring stack'
+		'  make phase5-install        Install the pinned trimmed monitoring stack' \
+		'  make phase5-prometheus     Open Prometheus safely on 127.0.0.1:9090' \
+		'  make phase5-grafana        Open Grafana safely on 127.0.0.1:3000' \
+		'  make phase5-alertmanager   Open Alertmanager safely on 127.0.0.1:9093' \
+		'  make phase5-status         Show monitoring and application status without Secrets'
 
 check:
 	@bash scripts/check-prerequisites.sh
@@ -112,3 +116,15 @@ phase5-grafana-secret:
 
 phase5-install:
 	@bash scripts/install-phase5-monitoring.sh
+
+phase5-prometheus:
+	@bash scripts/phase5-port-forward.sh prometheus
+
+phase5-grafana:
+	@bash scripts/phase5-port-forward.sh grafana
+
+phase5-alertmanager:
+	@bash scripts/phase5-port-forward.sh alertmanager
+
+phase5-status:
+	@bash scripts/phase5-status.sh

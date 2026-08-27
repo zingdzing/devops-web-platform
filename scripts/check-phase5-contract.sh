@@ -105,6 +105,10 @@ done
   || fail 'Grafana Secret creation script is missing'
 [[ -f scripts/install-phase5-monitoring.sh ]] \
   || fail 'monitoring stack installation script is missing'
+[[ -f scripts/phase5-port-forward.sh ]] \
+  || fail 'local monitoring port-forward script is missing'
+[[ -f scripts/phase5-status.sh ]] \
+  || fail 'Phase 5 status script is missing'
 
 grep -Fq "readonly CHART_VERSION='$MONITORING_CHART_VERSION'" \
   scripts/install-phase5-monitoring.sh \
@@ -117,6 +121,22 @@ grep -Fq 'retention: 2d' "$MONITORING_VALUES" \
   || fail 'Prometheus retention is not trimmed to two days'
 grep -Fq 'storage: 2Gi' "$MONITORING_VALUES" \
   || fail 'Prometheus persistent storage is not limited to 2Gi'
+
+grep -Fq -- '--address 127.0.0.1' scripts/phase5-port-forward.sh \
+  || fail 'monitoring port-forwards are not restricted to loopback'
+for access_contract in \
+  'prometheus) local_port=9090' \
+  'grafana) local_port=3000' \
+  'alertmanager) local_port=9093'; do
+  grep -Fq "$access_contract" scripts/phase5-port-forward.sh \
+    || fail "local access contract is missing: $access_contract"
+done
+if bash scripts/phase5-port-forward.sh unsupported >/dev/null 2>&1; then
+  fail 'monitoring port-forward script accepts an unsupported component'
+fi
+if grep -Eq 'get[[:space:]]+secrets?|describe[[:space:]]+secrets?' scripts/phase5-status.sh; then
+  fail 'Phase 5 status script must not read Kubernetes Secrets'
+fi
 
 log 'rendering pinned trimmed kube-prometheus-stack chart'
 helm template kube-prometheus-stack "$MONITORING_CHART" \
