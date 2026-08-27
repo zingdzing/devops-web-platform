@@ -3,6 +3,9 @@
 set -Eeuo pipefail
 
 readonly CHART_DIR='deploy/helm/devops-web-platform'
+readonly MONITORING_VALUES='deploy/monitoring/kube-prometheus-stack-values.yaml'
+readonly MONITORING_CHART='prometheus-community/kube-prometheus-stack'
+readonly MONITORING_CHART_VERSION='87.21.0'
 
 fail() {
   printf '[phase5-contract] ERROR: %s\n' "$1" >&2
@@ -25,6 +28,7 @@ trap cleanup EXIT
 
 readonly monitoring_off="$tmp_dir/monitoring-off.yaml"
 readonly monitoring_on="$tmp_dir/monitoring-on.yaml"
+readonly monitoring_stack="$tmp_dir/monitoring-stack.yaml"
 
 log 'rendering application chart with monitoring disabled and enabled'
 helm lint "$CHART_DIR" >/dev/null
@@ -82,5 +86,48 @@ for panel_title in \
     "$CHART_DIR/files/devops-web-platform-overview.json" >/dev/null \
     || fail "Grafana panel $panel_title is missing"
 done
+
+[[ -f "$MONITORING_VALUES" ]] \
+  || fail 'trimmed kube-prometheus-stack values are missing'
+[[ -f scripts/create-phase5-grafana-secret.sh ]] \
+  || fail 'Grafana Secret creation script is missing'
+[[ -f scripts/install-phase5-monitoring.sh ]] \
+  || fail 'monitoring stack installation script is missing'
+
+grep -Fq "readonly CHART_VERSION='$MONITORING_CHART_VERSION'" \
+  scripts/install-phase5-monitoring.sh \
+  || fail 'monitoring installer does not pin chart version 87.21.0'
+grep -Fq 'existingSecret: grafana-admin' "$MONITORING_VALUES" \
+  || fail 'Grafana does not use the external admin Secret'
+grep -Fq 'defaultDashboardsEnabled: false' "$MONITORING_VALUES" \
+  || fail 'upstream default dashboards are not disabled'
+grep -Fq 'retention: 2d' "$MONITORING_VALUES" \
+  || fail 'Prometheus retention is not trimmed to two days'
+grep -Fq 'storage: 2Gi' "$MONITORING_VALUES" \
+  || fail 'Prometheus persistent storage is not limited to 2Gi'
+
+log 'rendering pinned trimmed kube-prometheus-stack chart'
+helm template kube-prometheus-stack "$MONITORING_CHART" \
+  --version "$MONITORING_CHART_VERSION" \
+  --namespace monitoring \
+  --values "$MONITORING_VALUES" >"$monitoring_stack"
+
+grep -Fq 'kind: Prometheus' "$monitoring_stack" \
+  || fail 'trimmed stack does not render Prometheus'
+grep -Fq 'kind: Alertmanager' "$monitoring_stack" \
+  || fail 'trimmed stack does not render Alertmanager'
+grep -Fq 'kind: Deployment' "$monitoring_stack" \
+  || fail 'trimmed stack does not render its controllers'
+if grep -Eq '^kind: (Ingress|Gateway)$|type: (NodePort|LoadBalancer)' "$monitoring_stack"; then
+  fail 'monitoring stack exposes a public ingress or external service'
+fi
+if awk '
+  /^---$/ { in_secret = 0 }
+  /^kind: Secret$/ { in_secret = 1; next }
+  in_secret && /^[[:space:]]+name: grafana-admin$/ { found = 1 }
+  END { exit(found ? 0 : 1) }
+' "$monitoring_stack"; then
+  fail 'Grafana admin credential Secret must be created interactively, not rendered by Helm'
+fi
 
 log 'Phase 5 application monitoring contract passed'

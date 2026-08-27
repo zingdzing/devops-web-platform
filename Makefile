@@ -1,4 +1,4 @@
-.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify phase5-contract
+.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify phase5-contract phase5-grafana-secret phase5-install
 
 help:
 	@printf '%s\n' \
@@ -27,7 +27,9 @@ help:
 		'  make phase4-kubeconfig     Generate and validate the scoped Jenkins kubeconfig' \
 		'  make phase4-contract       Check Phase 4 files without deploying' \
 		'  make phase4-verify         Run live Phase 4 delivery and restart acceptance' \
-		'  make phase5-contract       Check Phase 5 monitoring resources without deploying'
+		'  make phase5-contract       Check Phase 5 monitoring resources without deploying' \
+		'  make phase5-grafana-secret Create or rotate the local Grafana admin Secret' \
+		'  make phase5-install        Install the pinned trimmed monitoring stack'
 
 check:
 	@bash scripts/check-prerequisites.sh
@@ -104,3 +106,9 @@ phase4-verify:
 
 phase5-contract:
 	@bash scripts/check-phase5-contract.sh
+
+phase5-grafana-secret:
+	@bash scripts/create-phase5-grafana-secret.sh
+
+phase5-install:
+	@bash scripts/install-phase5-monitoring.sh

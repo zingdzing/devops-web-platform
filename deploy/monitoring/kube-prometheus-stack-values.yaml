@@ -1,0 +1,131 @@
+# Phase 5 local learning profile for kube-prometheus-stack 87.21.0.
+# Credentials are intentionally absent. Create grafana-admin interactively.
+
+defaultRules:
+  create: false
+
+windowsMonitoring:
+  enabled: false
+
+# k3d/k3s does not expose these control-plane endpoints like a conventional
+# kubeadm cluster. Disabling them avoids permanent, misleading down targets.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: false
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: false
+  persistence:
+    enabled: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      provider:
+        allowUiUpdates: false
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: true
+      uid: prometheus
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+alertmanager:
+  enabled: true
+  ingress:
+    enabled: false
+  alertmanagerSpec:
+    replicas: 1
+    retention: 24h
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 150m
+        memory: 192Mi
+
+prometheus:
+  enabled: true
+  ingress:
+    enabled: false
+  prometheusSpec:
+    replicas: 1
+    retention: 2d
+    retentionSize: 1800MB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    serviceMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 768Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 150m
+      memory: 192Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 150m
+      memory: 128Mi
