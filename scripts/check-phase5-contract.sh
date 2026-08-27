@@ -6,6 +6,9 @@ readonly CHART_DIR='deploy/helm/devops-web-platform'
 readonly MONITORING_VALUES='deploy/monitoring/kube-prometheus-stack-values.yaml'
 readonly MONITORING_CHART='prometheus-community/kube-prometheus-stack'
 readonly MONITORING_CHART_VERSION='87.21.0'
+readonly JENKINS_RBAC='deploy/kubernetes/jenkins-rbac.yaml'
+readonly CI_DEPLOY='scripts/ci/deploy.sh'
+readonly CI_QUALITY='scripts/ci/quality-check.sh'
 
 fail() {
   printf '[phase5-contract] ERROR: %s\n' "$1" >&2
@@ -19,6 +22,15 @@ log() {
 for command_name in helm grep jq mktemp; do
   command -v "$command_name" >/dev/null 2>&1 || fail "$command_name is missing"
 done
+
+grep -Fq 'apiGroups: ["monitoring.coreos.com"]' "$JENKINS_RBAC" \
+  || fail 'Jenkins Role is missing the monitoring.coreos.com API group'
+grep -Fq 'resources: ["servicemonitors", "prometheusrules"]' "$JENKINS_RBAC" \
+  || fail 'Jenkins Role is missing namespaced monitoring resources'
+grep -Fq -- '--set monitoring.enabled=true' "$CI_DEPLOY" \
+  || fail 'Jenkins deployment does not enable application monitoring resources'
+grep -Fq 'make phase5-contract' "$CI_QUALITY" \
+  || fail 'Jenkins quality gate does not run the Phase 5 contract'
 
 tmp_dir="$(mktemp -d /tmp/devops-phase5-contract.XXXXXX)"
 cleanup() {

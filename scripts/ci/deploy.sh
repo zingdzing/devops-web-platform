@@ -53,6 +53,7 @@ if [[ "$mode" == 'deploy' ]]; then
     --set-string images.frontend.tag="$IMAGE_TAG" \
     --set-string images.backend.repository="$CI_BACKEND_REPOSITORY" \
     --set-string images.backend.tag="$IMAGE_TAG" \
+    --set monitoring.enabled=true \
     --rollback-on-failure --wait=watcher --timeout 5m
 fi
 

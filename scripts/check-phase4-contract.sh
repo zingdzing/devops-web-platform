@@ -193,6 +193,10 @@ grep -Eq '^kind: RoleBinding$' "$RBAC_FILE" \
 if grep -Eq '^kind: ClusterRole(Binding)?$|cluster-admin' "$RBAC_FILE"; then
   fail 'Jenkins RBAC must not grant cluster-scoped or cluster-admin access'
 fi
+grep -Fq 'apiGroups: ["monitoring.coreos.com"]' "$RBAC_FILE" \
+  || fail 'Jenkins namespaced Role must include the monitoring API group'
+grep -Fq 'resources: ["servicemonitors", "prometheusrules"]' "$RBAC_FILE" \
+  || fail 'Jenkins namespaced Role must include only the required monitoring resources'
 grep -Fq "readonly EXPECTED_CONTEXT='k3d-devops-platform'" "$KUBECONFIG_SCRIPT" \
   || fail 'kubeconfig generator must pin the expected k3d context'
 

@@ -26,6 +26,7 @@ shellcheck --severity=warning "${shell_files[@]}"
 
 ci_log 'Checking Helm manifests and canonical database initialization SQL'
 make phase3-manifests
+make phase5-contract
 cmp --silent app/database/init.sql "$CI_CHART_DIR/files/init.sql" \
   || ci_fail 'Helm init.sql differs from app/database/init.sql'
 
