@@ -1,0 +1,112 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "UP"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red"}, {"color": "green", "value": 1}]}}},
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "auto"},
+      "targets": [{"expr": "max(up{namespace=\"$namespace\",service=\"backend\"})", "refId": "A"}],
+      "title": "Backend Target Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}},
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "targets": [{"expr": "sum(rate(devops_http_requests_total[5m]))", "legendFormat": "requests", "refId": "A"}],
+      "title": "Requests per Second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "targets": [{"expr": "100 * sum(rate(devops_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(devops_http_requests_total[5m])), 0.001)", "legendFormat": "5xx", "refId": "A"}],
+      "title": "HTTP 5xx Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(devops_http_request_duration_seconds_bucket[5m])))", "legendFormat": "P95", "refId": "A"}],
+      "title": "HTTP P95 Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 6},
+      "id": 5,
+      "targets": [
+        {"expr": "sum by (deployment) (kube_deployment_spec_replicas{namespace=\"$namespace\",deployment=~\".*-(frontend|backend)\"})", "legendFormat": "{{deployment}} desired", "refId": "A"},
+        {"expr": "sum by (deployment) (kube_deployment_status_replicas_available{namespace=\"$namespace\",deployment=~\".*-(frontend|backend)\"})", "legendFormat": "{{deployment}} available", "refId": "B"}
+      ],
+      "title": "Deployment Replicas",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 6},
+      "id": 6,
+      "targets": [{"expr": "sum(kube_pod_status_ready{namespace=\"$namespace\",condition=\"true\"})", "legendFormat": "ready pods", "refId": "A"}],
+      "title": "Pod Ready Status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 6},
+      "id": 7,
+      "targets": [{"expr": "sum by (pod, container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\",container=~\"frontend|backend\"}[15m]))", "legendFormat": "{{pod}} {{container}}", "refId": "A"}],
+      "title": "Container Restarts",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "cores"}},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 13},
+      "id": 8,
+      "targets": [{"expr": "sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",container=~\"frontend|backend\",image!=\"\"}[5m]))", "legendFormat": "{{pod}} {{container}}", "refId": "A"}],
+      "title": "Pod CPU Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 13},
+      "id": 9,
+      "targets": [{"expr": "sum by (pod, container) (container_memory_working_set_bytes{namespace=\"$namespace\",container=~\"frontend|backend\",image!=\"\"})", "legendFormat": "{{pod}} {{container}}", "refId": "A"}],
+      "title": "Pod Memory Working Set",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["devops-web-platform", "phase5"],
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": true, "text": "devops-platform", "value": "devops-platform"},
+        "hide": 0,
+        "name": "namespace",
+        "options": [{"selected": true, "text": "devops-platform", "value": "devops-platform"}],
+        "query": "devops-platform",
+        "type": "constant"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "title": "DevOps Web Platform Overview",
+  "uid": "devops-web-platform-overview",
+  "version": 1
+}

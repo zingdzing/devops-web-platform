@@ -1,0 +1,47 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "devops-web-platform.fullname" . }}
+  labels:
+    {{- include "devops-web-platform.labels" . | nindent 4 }}
+    release: {{ .Values.monitoring.releaseLabel | quote }}
+spec:
+  groups:
+    - name: devops-web-platform.rules
+      rules:
+        - alert: BackendTargetMissing
+          expr: absent(up{namespace="{{ .Release.Namespace }}", service="backend"} == 1)
+          for: 1m
+          labels:
+            severity: critical
+            service: backend
+            namespace: {{ .Release.Namespace }}
+          annotations:
+            summary: Backend metrics target is missing
+            description: Prometheus has not observed a healthy backend metrics target for one minute.
+            runbook_url: docs/runbooks/phase-5-monitoring-operations.md#backendtargetmissing
+        - alert: DeploymentReplicasUnavailable
+          expr: |-
+            kube_deployment_spec_replicas{namespace="{{ .Release.Namespace }}", deployment=~"{{ include "devops-web-platform.fullname" . }}-(frontend|backend)"}
+              > kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment=~"{{ include "devops-web-platform.fullname" . }}-(frontend|backend)"}
+          for: 1m
+          labels:
+            severity: warning
+            namespace: {{ .Release.Namespace }}
+          annotations:
+            summary: Application Deployment has unavailable replicas
+            description: A frontend or backend Deployment has fewer available replicas than requested for one minute.
+            runbook_url: docs/runbooks/phase-5-monitoring-operations.md#deploymentreplicasunavailable
+        - alert: ContainerRestartingFrequently
+          expr: |-
+            increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}", container=~"frontend|backend"}[10m]) >= 3
+          for: 1m
+          labels:
+            severity: warning
+            namespace: {{ .Release.Namespace }}
+          annotations:
+            summary: Application container is restarting frequently
+            description: A frontend or backend container restarted at least three times within ten minutes.
+            runbook_url: docs/runbooks/phase-5-monitoring-operations.md#containerrestartingfrequently
+{{- end }}
