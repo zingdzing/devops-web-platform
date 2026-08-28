@@ -76,4 +76,28 @@ if grep -Fq "defaultValue: true" Jenkinsfile \
   fail 'Failure Drill must never be automatically enabled'
 fi
 
+for required_text in \
+  "readonly CONTEXT='k3d-devops-platform'" \
+  "readonly APPLICATION_NAMESPACE='devops-platform'" \
+  "readonly MONITORING_NAMESPACE='monitoring'" \
+  "readonly APPLICATION_URL='http://localhost:8080'" \
+  "readonly PHASE6_MARKER_TITLE='Phase 6 rollback persistence'" \
+  'trap cleanup EXIT INT TERM' \
+  'helm status' \
+  'metadata.uid' \
+  '/api/v1/targets' \
+  '/api/v1/alerts' \
+  'severity == "critical"' \
+  '/healthz' \
+  '/readyz' \
+  '--request POST' \
+  '--request PUT' \
+  '--request DELETE'; do
+  grep -Fq -- "$required_text" "$VERIFY_SCRIPT" \
+    || fail "Phase 6 verifier is missing recovery check: $required_text"
+done
+if grep -Eq 'kubectl.*get[[:space:]]+secrets?' "$VERIFY_SCRIPT"; then
+  fail 'Phase 6 verifier must not read Kubernetes Secrets'
+fi
+
 printf '[phase6-contract] Phase 6 file boundary passed\n'
