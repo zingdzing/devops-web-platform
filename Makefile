@@ -1,4 +1,4 @@
-.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify phase5-contract phase5-grafana-secret phase5-install phase5-prometheus phase5-grafana phase5-alertmanager phase5-status phase5-verify
+.PHONY: help check phase1-db-up phase1-db-down phase1-test phase1-run phase1-verify phase2-up phase2-down phase2-logs phase2-verify phase3-cluster-create phase3-manifests phase3-deploy phase3-status phase3-logs phase3-stop phase3-verify phase4-jenkins-build phase4-jenkins-up phase4-jenkins-logs phase4-jenkins-stop phase4-kubeconfig phase4-contract phase4-verify phase5-contract phase5-grafana-secret phase5-install phase5-prometheus phase5-grafana phase5-alertmanager phase5-status phase5-verify phase6-contract phase6-verify
 
 help:
 	@printf '%s\n' \
@@ -34,7 +34,9 @@ help:
 		'  make phase5-grafana        Open Grafana safely on 127.0.0.1:3000' \
 		'  make phase5-alertmanager   Open Alertmanager safely on 127.0.0.1:9093' \
 		'  make phase5-status         Show monitoring and application status without Secrets' \
-		'  make phase5-verify         Run real Firing-to-Resolved alert acceptance'
+		'  make phase5-verify         Run real Firing-to-Resolved alert acceptance' \
+		'  make phase6-contract       Check Phase 6 failure-drill safety contracts' \
+		'  make phase6-verify         Verify recovery, persistence, and monitoring'
 
 check:
 	@bash scripts/check-prerequisites.sh
@@ -132,3 +134,9 @@ phase5-status:
 
 phase5-verify:
 	@bash scripts/verify-phase5.sh
+
+phase6-contract:
+	@bash scripts/check-phase6-contract.sh
+
+phase6-verify:
+	@bash scripts/verify-phase6.sh
