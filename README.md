@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-**Phase 5：Prometheus、Grafana 与 Alertmanager 可观测性闭环已完成。**
+**Phase 6：参数化失败发布、Helm 自动回滚与恢复验收闭环已完成。**
 
 “运维任务清单”运行在本地 k3d/K3s 集群：F5 NGINX Ingress Controller 统一接收入口流量，Nginx frontend 与 Gunicorn/Flask backend 使用 Deployment/Service，MySQL 使用 StatefulSet、headless Service 和 1 Gi PVC。Helm 管理应用声明，Jenkins 轮询 GitHub `main`，自动测试、构建、检查、推送两个不可变 Docker Hub 镜像，随后部署到 Kubernetes 并执行真实入口冒烟测试。独立 `monitoring` Namespace 中的精简 kube-prometheus-stack 通过 ServiceMonitor 自动发现 Flask 指标，Grafana 展示项目 Dashboard，PrometheusRule 与 Alertmanager 构成告警闭环。
 
-2026-08-28，Phase 5 验收脚本连续两次完成真实 `BackendTargetMissing` 告警触发和恢复，持久化任务与 MySQL PVC UID 在演练前后保持一致；Jenkins Build `#13`、`#14` 也在加入监控资源后十阶段全部成功。具体证据见 `docs/implementation/phase-5-observability.md`。
+2026-08-28，Phase 5 验收脚本连续两次完成真实 `BackendTargetMissing` 告警触发和恢复，持久化任务与 MySQL PVC UID 在演练前后保持一致；Jenkins Build `#13`、`#14` 也在加入监控资源后十阶段全部成功。随后 Phase 6 Jenkins Build `#17` 用不存在的 backend 镜像触发真实拉取失败，Helm 自动回滚后应用、任务数据、MySQL PVC 与 Prometheus Target 均恢复；Build `#18` 关闭演练参数后正常阶段全绿。具体证据见 `docs/implementation/phase-6-failure-recovery.md`。
 
 ## 平台首次部署（Phase 3）
 
@@ -63,6 +63,15 @@ make phase5-verify
 
 Grafana、Prometheus 和 Alertmanager 只通过临时 localhost 端口转发访问，具体命令、密码轮换和故障恢复见 `docs/runbooks/phase-5-monitoring-operations.md`。
 
+Phase 6 的静态安全合同和恢复后实时验收：
+
+```bash
+make phase6-contract
+make phase6-verify
+```
+
+故障演练默认关闭，只能从 Jenkins `Build with Parameters` 手动勾选 `RUN_FAILURE_DRILL`，并由 `zing` 二次批准。红色 Build 只有同时满足 `EXPECTED_DRILL_FAILURE`、恢复报告字段全部为 true 且 `make phase6-verify` 通过时，才表示演练成功。操作与人工恢复步骤见 `docs/runbooks/phase-6-failure-release-recovery.md`。
+
 ## 应用请求流
 
 ```text
@@ -99,6 +108,20 @@ PrometheusRule -> Prometheus -> Alertmanager -> 本机安全访问页面
 
 应用暴露请求、时延、任务、数据库连接和版本等低基数指标。三条项目告警覆盖 backend 目标丢失、Deployment 副本不可用和容器频繁重启；自动验收会真实缩容 backend、观察 Firing、恢复副本并等待规则回到 Inactive，而不是删除规则伪造恢复。
 
+## 失败发布与恢复流
+
+```text
+Jenkins RUN_FAILURE_DRILL=true + 人工批准
+  -> 发布不存在的 backend 镜像
+  -> Kubernetes ErrImagePull / ImagePullBackOff
+  -> Helm rollback-on-failure
+  -> 应用、任务数据、PVC 与 Prometheus 恢复验证
+  -> EXPECTED_DRILL_FAILURE 红色证据构建
+  -> RUN_FAILURE_DRILL=false 正常绿色构建
+```
+
+演练不删除 Release、Namespace、Secret 或 PVC，不修改数据库密码，也不会由 Poll SCM 自动触发。它用于展示受控故障注入、证据采集、回滚和 Runbook 能力，不是生产级混沌工程或灾难恢复。
+
 ## 常用命令
 
 ```bash
@@ -119,6 +142,8 @@ make phase5-install
 make phase5-status
 make phase5-contract
 make phase5-verify
+make phase6-contract
+make phase6-verify
 ```
 
 ## 技术栈
@@ -143,7 +168,7 @@ make phase5-verify
 4. Phase 3：k3d/K3s、NGINX Ingress、Helm Chart、自愈与持久化。✅
 5. Phase 4：Jenkins 测试、构建、推送、部署和验证流水线。✅
 6. Phase 5：Prometheus 指标、Grafana 仪表盘和 Alertmanager 告警。✅
-7. Phase 6：失败发布回滚演练、Runbook 完善与项目复盘。
+7. Phase 6：失败发布回滚演练、Runbook 完善与项目复盘。✅
 
 ## 项目记录
 
@@ -166,6 +191,7 @@ make phase5-verify
 - `plugins.txt` 固定插件集合但未逐项固定插件版本；Jenkins 基础镜像已固定，完整可复现的生产方案还应锁定插件版本。
 - 监控组件均为单副本，Prometheus/Alertmanager 使用短期 local-path PVC；适合本机学习和演练，不是生产级高可用或跨集群存储。
 - 当前未连接个人邮箱或外部聊天软件；告警在 Alertmanager 页面内验收，避免为简历项目引入额外账号、密钥和通知噪声。
+- Phase 6 只在本机非生产 k3d 集群运行，并要求人工参数和二次批准；它验证的是单次失败发布恢复，不等同于生产级混沌工程、数据库备份恢复、跨区域容灾或零停机高可用。
 
 ## 项目原则
 

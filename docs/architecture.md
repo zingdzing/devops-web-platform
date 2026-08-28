@@ -81,3 +81,26 @@ PrometheusRule -> Prometheus rule evaluation -> Alertmanager
 6. Prometheus、Grafana 和 Alertmanager 均不创建公网入口。运维访问使用绑定 `127.0.0.1` 的临时 `kubectl port-forward`，关闭终端后不影响集群内采集和告警计算。
 
 监控栈采用同一官方 kube-prometheus-stack Chart 的精简配置：单副本、短保留和明确资源边界，关闭本地 k3d 不需要或噪声较大的组件。它覆盖完整学习链路，但不声称具备生产级高可用、长期存储、多集群或外部通知能力。
+
+## Implemented failure-recovery flow (Phase 6)
+
+```text
+Jenkins RUN_FAILURE_DRILL=true + input approval by zing
+  -> record healthy Helm/image/application/PVC/Prometheus baseline
+  -> set nonexistent backend image
+  -> Kubernetes ErrImagePull / ImagePullBackOff
+  -> Helm --rollback-on-failure
+  -> verify application/data/PVC/Prometheus recovery
+  -> expected red build + whitelisted archived evidence
+  -> RUN_FAILURE_DRILL=false normal green build
+```
+
+1. `RUN_FAILURE_DRILL` 是默认关闭的 Boolean 参数；Poll SCM 和普通构建不会进入演练，人工启用后仍需 Jenkins 用户 `zing` 二次批准。
+2. 故障源仅为动态的 `failure-drill-${BUILD_NUMBER}-does-not-exist` backend 标签。Pipeline 不构建或推送该标签，也不删除 Release、Namespace、Secret、PVC 或数据库数据。
+3. 演练前记录最后健康 Helm revision、frontend/backend 镜像、MySQL PVC 名称/UID、业务 API 和 Prometheus Target；preflight 失败时不修改集群。
+4. Helm upgrade 使用 `--rollback-on-failure --wait=watcher --timeout 5m`。退出保护在异常路径再次检查健康状态，必要时按 baseline revision 执行有界 `helm rollback`。
+5. 恢复验证覆盖工作负载 Ready、原健康镜像、health/readiness/CRUD、持久化任务、MySQL PVC UID、监控 Pods、Prometheus Target 和 critical 活动告警。
+6. 成功恢复后 Jenkins 主动写入 `EXPECTED_DRILL_FAILURE` 并把构建标红，使故障演练在历史中清晰可见；真正的恢复异常使用 `RECOVERY_FAILURE`，两者不能只靠颜色判断。
+7. Jenkins 在 `monitoring` Namespace 只具有 Pods/Services/Endpoints 观察和临时 Pod port-forward 权限，仍不能读取 monitoring Secret、修改资源或访问 Node。
+
+Phase 6 采用单集群、单次错误镜像演练，适合个人简历项目展示发布保护和排障闭环。它没有覆盖节点故障、网络分区、数据库备份恢复、多副本高可用、跨集群或跨区域灾难恢复。
