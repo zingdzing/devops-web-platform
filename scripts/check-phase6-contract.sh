@@ -11,6 +11,8 @@ readonly PHASE6_DIR='scripts/phase6'
 readonly DRILL_SCRIPT="$PHASE6_DIR/failure-drill.sh"
 readonly COMMON_SCRIPT="$PHASE6_DIR/common.sh"
 readonly VERIFY_SCRIPT='scripts/verify-phase6.sh'
+readonly JENKINS_RBAC='deploy/kubernetes/jenkins-rbac.yaml'
+readonly KUBECONFIG_SCRIPT='scripts/create-phase4-kubeconfig.sh'
 
 for file in "$COMMON_SCRIPT" "$DRILL_SCRIPT" "$VERIFY_SCRIPT"; do
   [[ -f "$file" ]] || fail "$file is missing"
@@ -22,5 +24,13 @@ grep -Fq 'phase6-contract:' Makefile \
   || fail 'Makefile phase6-contract target is missing'
 grep -Fq 'phase6-verify:' Makefile \
   || fail 'Makefile phase6-verify target is missing'
+
+grep -Fq 'name: jenkins-monitoring-observer' "$JENKINS_RBAC" \
+  || fail 'monitoring observer Role is missing'
+grep -Fq 'resources: ["pods/portforward"]' "$JENKINS_RBAC" \
+  || fail 'monitoring observer cannot create a temporary port-forward'
+grep -Fq 'Jenkins identity unexpectedly reads monitoring Secrets' \
+  "$KUBECONFIG_SCRIPT" \
+  || fail 'monitoring Secret denial check is missing'
 
 printf '[phase6-contract] Phase 6 file boundary passed\n'

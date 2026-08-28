@@ -221,7 +221,7 @@ docker exec --user jenkins "$JENKINS_CONTAINER" \
   kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i get pods -n monitoring \
   | grep -Fxq yes || fail 'Jenkins identity cannot observe monitoring Pods'
 docker exec --user jenkins "$JENKINS_CONTAINER" \
-  kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i create pods/portforward -n monitoring \
+  kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i create pods --subresource=portforward -n monitoring \
   | grep -Fxq yes || fail 'Jenkins identity cannot create monitoring port-forward'
 monitoring_secret_access="$(docker exec --user jenkins "$JENKINS_CONTAINER" \
   kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i get secrets -n monitoring || true)"

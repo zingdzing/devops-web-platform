@@ -197,6 +197,12 @@ grep -Fq 'apiGroups: ["monitoring.coreos.com"]' "$RBAC_FILE" \
   || fail 'Jenkins namespaced Role must include the monitoring API group'
 grep -Fq 'resources: ["servicemonitors", "prometheusrules"]' "$RBAC_FILE" \
   || fail 'Jenkins namespaced Role must include only the required monitoring resources'
+grep -Fq 'name: jenkins-monitoring-observer' "$RBAC_FILE" \
+  || fail 'Jenkins monitoring observer Role is missing'
+grep -Fq 'resources: ["pods/portforward"]' "$RBAC_FILE" \
+  || fail 'Jenkins monitoring observer cannot create a temporary port-forward'
+grep -Fq 'Jenkins identity unexpectedly reads monitoring Secrets' "$KUBECONFIG_SCRIPT" \
+  || fail 'Jenkins identity must verify that monitoring Secrets stay denied'
 grep -Fq "readonly EXPECTED_CONTEXT='k3d-devops-platform'" "$KUBECONFIG_SCRIPT" \
   || fail 'kubeconfig generator must pin the expected k3d context'
 

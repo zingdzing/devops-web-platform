@@ -137,6 +137,16 @@ docker exec --user jenkins "$JENKINS_CONTAINER" \
 docker exec --user jenkins "$JENKINS_CONTAINER" \
   kubectl --kubeconfig "$CONTAINER_KUBECONFIG" get pods -n "$NAMESPACE" >/dev/null \
   || fail 'Jenkins identity failed to list target Pods'
+docker exec --user jenkins "$JENKINS_CONTAINER" \
+  kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i get pods -n monitoring \
+  | grep -Fxq 'yes' || fail 'Jenkins identity cannot observe monitoring Pods'
+docker exec --user jenkins "$JENKINS_CONTAINER" \
+  kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i create pods --subresource=portforward -n monitoring \
+  | grep -Fxq 'yes' || fail 'Jenkins identity cannot create monitoring port-forward'
+monitoring_secret_access="$(docker exec --user jenkins "$JENKINS_CONTAINER" \
+  kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i get secrets -n monitoring || true)"
+[[ "$monitoring_secret_access" == 'no' ]] \
+  || fail 'Jenkins identity unexpectedly reads monitoring Secrets'
 node_access="$(docker exec --user jenkins "$JENKINS_CONTAINER" \
   kubectl --kubeconfig "$CONTAINER_KUBECONFIG" auth can-i get nodes || true)"
 [[ "$node_access" == 'no' ]] || fail 'Jenkins identity unexpectedly has cluster Node access'
@@ -144,6 +154,6 @@ node_access="$(docker exec --user jenkins "$JENKINS_CONTAINER" \
 [[ "$(stat -c '%a' "$OUTPUT_FILE")" == '600' ]] \
   || fail 'generated kubeconfig permissions are not 600'
 
-log "Validated namespaced access and denied cluster Node access"
+log 'Validated deployment access, monitoring observation, and denied Secret/Node access'
 log "Generated credential file: $OUTPUT_FILE"
 log 'Next: upload this file to Jenkins as a Secret file credential, then delete it locally.'
