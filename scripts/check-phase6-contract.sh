@@ -33,4 +33,24 @@ grep -Fq 'Jenkins identity unexpectedly reads monitoring Secrets' \
   "$KUBECONFIG_SCRIPT" \
   || fail 'monitoring Secret denial check is missing'
 
+for required_text in \
+  'failure-drill-${BUILD_NUMBER}-does-not-exist' \
+  '--rollback-on-failure' \
+  '--wait=watcher' \
+  '--timeout 5m' \
+  'trap recovery_guard EXIT INT TERM' \
+  'EXPECTED_DRILL_FAILURE' \
+  'RECOVERY_FAILURE' \
+  'phase6-baseline.txt' \
+  'phase6-failure.txt' \
+  'phase6-recovery.txt'; do
+  grep -Fq -- "$required_text" "$DRILL_SCRIPT" \
+    || fail "failure drill contract is missing: $required_text"
+done
+
+if grep -Ev '^[[:space:]]*#' "$PHASE6_DIR"/*.sh \
+  | grep -Eq 'kubectl[[:space:]]+delete[[:space:]]+(namespace|pvc|persistentvolumeclaim|secret)|helm[[:space:]]+uninstall|docker[[:space:]]+(system|image)[[:space:]]+prune'; then
+  fail 'Phase 6 scripts contain a forbidden destructive command'
+fi
+
 printf '[phase6-contract] Phase 6 file boundary passed\n'
