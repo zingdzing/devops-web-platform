@@ -126,13 +126,14 @@ expected_stages=(
   'Deploy'
   'Rollout Verification'
   'Smoke Test'
+  'Failure Drill'
 )
 grep -A 5 -F "stage('Checkout')" "$JENKINSFILE" | grep -Fq 'retry(3)' \
   || fail 'Checkout must retry transient Git network failures up to three times'
 grep -A 5 -F "stage('Checkout')" "$JENKINSFILE" | grep -Fq 'deleteDir()' \
   || fail 'Checkout must clear the previous workspace before creating new reports'
 stage_count="$(grep -Ec "^[[:space:]]*stage\\('[^']+'\\)" "$JENKINSFILE")"
-[[ "$stage_count" == '9' ]] || fail "Jenkinsfile has $stage_count stages; expected 9"
+[[ "$stage_count" == '10' ]] || fail "Jenkinsfile has $stage_count stages; expected 10"
 previous_line=0
 for stage_name in "${expected_stages[@]}"; do
   stage_line="$(grep -nF "stage('$stage_name')" "$JENKINSFILE" | cut -d: -f1)"

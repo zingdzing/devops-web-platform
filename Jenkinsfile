@@ -9,6 +9,11 @@ pipeline {
     skipDefaultCheckout(true)
   }
 
+  parameters {
+    booleanParam(name: 'RUN_FAILURE_DRILL', defaultValue: false,
+      description: 'Manually run the non-production failed-release rollback drill')
+  }
+
   triggers {
     pollSCM('H/5 * * * *')
   }
@@ -125,6 +130,36 @@ pipeline {
           variable: 'KUBECONFIG'
         )]) {
           sh 'bash scripts/ci/smoke-test.sh'
+        }
+      }
+    }
+
+    stage('Failure Drill') {
+      when {
+        allOf {
+          expression { params.RUN_FAILURE_DRILL }
+          triggeredBy 'UserIdCause'
+        }
+      }
+      steps {
+        input message: 'Run the non-production failed-release rollback drill?',
+          ok: 'Run failure drill',
+          submitter: 'zing'
+        withCredentials([file(
+          credentialsId: 'k3d-deployer-kubeconfig',
+          variable: 'KUBECONFIG'
+        )]) {
+          script {
+            int drillStatus = sh(
+              script: 'bash scripts/phase6/failure-drill.sh --run',
+              returnStatus: true
+            )
+            if (drillStatus != 0) {
+              error("RECOVERY_FAILURE: Phase 6 drill exited with ${drillStatus}")
+            }
+            currentBuild.description = 'EXPECTED_DRILL_FAILURE: rollback verified'
+            error('EXPECTED_DRILL_FAILURE: bad release blocked and rollback verified')
+          }
         }
       }
     }

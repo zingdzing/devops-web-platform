@@ -53,4 +53,27 @@ if grep -Ev '^[[:space:]]*#' "$PHASE6_DIR"/*.sh \
   fail 'Phase 6 scripts contain a forbidden destructive command'
 fi
 
+for required_text in \
+  "booleanParam(name: 'RUN_FAILURE_DRILL', defaultValue: false" \
+  "stage('Failure Drill')" \
+  'params.RUN_FAILURE_DRILL' \
+  "submitter: 'zing'" \
+  'failure-drill.sh --run' \
+  'EXPECTED_DRILL_FAILURE'; do
+  grep -Fq "$required_text" Jenkinsfile \
+    || fail "Jenkins failure-drill contract is missing: $required_text"
+done
+
+smoke_line="$(grep -nF "stage('Smoke Test')" Jenkinsfile | cut -d: -f1)"
+drill_line="$(grep -nF "stage('Failure Drill')" Jenkinsfile | cut -d: -f1)"
+[[ -n "$smoke_line" && -n "$drill_line" && "$drill_line" -gt "$smoke_line" ]] \
+  || fail 'Failure Drill must run after Smoke Test'
+grep -A 12 -F "stage('Failure Drill')" Jenkinsfile \
+  | grep -Fq "triggeredBy 'UserIdCause'" \
+  || fail 'Failure Drill must require a manually started Jenkins build'
+if grep -Fq "defaultValue: true" Jenkinsfile \
+  || grep -Eq 'RUN_FAILURE_DRILL[[:space:]]*=[[:space:]]*true' Jenkinsfile; then
+  fail 'Failure Drill must never be automatically enabled'
+fi
+
 printf '[phase6-contract] Phase 6 file boundary passed\n'
