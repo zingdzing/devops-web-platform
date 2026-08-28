@@ -6,6 +6,8 @@ readonly CHART_DIR='deploy/helm/devops-web-platform'
 readonly MONITORING_VALUES='deploy/monitoring/kube-prometheus-stack-values.yaml'
 readonly MONITORING_CHART='prometheus-community/kube-prometheus-stack'
 readonly MONITORING_CHART_VERSION='87.21.0'
+readonly MONITORING_REPO_NAME='prometheus-community'
+readonly MONITORING_REPO_URL='https://prometheus-community.github.io/helm-charts'
 readonly JENKINS_RBAC='deploy/kubernetes/jenkins-rbac.yaml'
 readonly CI_DEPLOY='scripts/ci/deploy.sh'
 readonly CI_QUALITY='scripts/ci/quality-check.sh'
@@ -17,6 +19,25 @@ fail() {
 
 log() {
   printf '[phase5-contract] %s\n' "$1"
+}
+
+prepare_monitoring_repo() {
+  local attempt
+
+  log 'preparing the pinned official monitoring chart repository'
+  for attempt in 1 2 3; do
+    if helm repo add "$MONITORING_REPO_NAME" "$MONITORING_REPO_URL" \
+      --force-update >/dev/null; then
+      return 0
+    fi
+
+    if [[ "$attempt" -lt 3 ]]; then
+      log "Helm repository attempt $attempt failed; retrying"
+      sleep "$((attempt * 2))"
+    fi
+  done
+
+  fail "cannot prepare Helm repository $MONITORING_REPO_NAME after 3 attempts"
 }
 
 for command_name in helm grep jq mktemp; do
@@ -139,6 +160,7 @@ if grep -Eq 'get[[:space:]]+secrets?|describe[[:space:]]+secrets?' scripts/phase
 fi
 
 log 'rendering pinned trimmed kube-prometheus-stack chart'
+prepare_monitoring_repo
 helm template kube-prometheus-stack "$MONITORING_CHART" \
   --version "$MONITORING_CHART_VERSION" \
   --namespace monitoring \
