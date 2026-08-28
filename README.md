@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-**Phase 4：Jenkins CI/CD 自动发布已完成。**
+**Phase 5：Prometheus、Grafana 与 Alertmanager 可观测性闭环已完成。**
 
-“运维任务清单”运行在本地 k3d/K3s 集群：F5 NGINX Ingress Controller 统一接收入口流量，Nginx frontend 与 Gunicorn/Flask backend 使用 Deployment/Service，MySQL 使用 StatefulSet、headless Service 和 1 Gi PVC。Helm 管理应用声明，Jenkins 轮询 GitHub `main`，自动测试、构建、检查、推送两个不可变 Docker Hub 镜像，随后部署到 Kubernetes 并执行真实入口冒烟测试。
+“运维任务清单”运行在本地 k3d/K3s 集群：F5 NGINX Ingress Controller 统一接收入口流量，Nginx frontend 与 Gunicorn/Flask backend 使用 Deployment/Service，MySQL 使用 StatefulSet、headless Service 和 1 Gi PVC。Helm 管理应用声明，Jenkins 轮询 GitHub `main`，自动测试、构建、检查、推送两个不可变 Docker Hub 镜像，随后部署到 Kubernetes 并执行真实入口冒烟测试。独立 `monitoring` Namespace 中的精简 kube-prometheus-stack 通过 ServiceMonitor 自动发现 Flask 指标，Grafana 展示项目 Dashboard，PrometheusRule 与 Alertmanager 构成告警闭环。
 
-2026-08-21，Poll SCM 自动触发的 Jenkins Build `#7` 在提交 `e82f13f33f25...` 上九阶段全部成功。Prometheus/Grafana/Alertmanager 属于 Phase 5，目前不把它们描述为已完成能力。
+2026-08-28，Phase 5 验收脚本连续两次完成真实 `BackendTargetMissing` 告警触发和恢复，持久化任务与 MySQL PVC UID 在演练前后保持一致；Jenkins Build `#13`、`#14` 也在加入监控资源后十阶段全部成功。具体证据见 `docs/implementation/phase-5-observability.md`。
 
 ## 平台首次部署（Phase 3）
 
@@ -51,6 +51,18 @@ make phase4-verify
 
 向 GitHub `main` 推送提交后，Jenkins 按 `H/5` 轮询自动运行九阶段流水线；Jenkins 页面位于 <http://localhost:8090>。首次安装和凭据设置见 `docs/runbooks/phase-4-jenkins-operations.md`。
 
+Phase 5 监控栈的安装、状态检查和真实告警验收：
+
+```bash
+make phase5-grafana-secret
+make phase5-install
+make phase5-status
+make phase5-contract
+make phase5-verify
+```
+
+Grafana、Prometheus 和 Alertmanager 只通过临时 localhost 端口转发访问，具体命令、密码轮换和故障恢复见 `docs/runbooks/phase-5-monitoring-operations.md`。
+
 ## 应用请求流
 
 ```text
@@ -76,6 +88,17 @@ GitHub main -> Jenkins Poll SCM -> pytest / ShellCheck / Helm checks
 
 Docker Hub PAT 与 namespace 专用 kubeconfig 只由 Jenkins Credentials 注入。Pipeline 不读取根目录 `.env`，不创建数据库 Secret，也不删除 namespace、PVC 或 Helm release。
 
+## 监控与告警流
+
+```text
+Flask /metrics -> Backend Service -> ServiceMonitor -> Prometheus
+Kubernetes API -> kube-state-metrics --------------------^
+Prometheus -> Grafana Dashboard
+PrometheusRule -> Prometheus -> Alertmanager -> 本机安全访问页面
+```
+
+应用暴露请求、时延、任务、数据库连接和版本等低基数指标。三条项目告警覆盖 backend 目标丢失、Deployment 副本不可用和容器频繁重启；自动验收会真实缩容 backend、观察 Firing、恢复副本并等待规则回到 Inactive，而不是删除规则伪造恢复。
+
 ## 常用命令
 
 ```bash
@@ -92,6 +115,10 @@ make phase4-jenkins-up
 make phase4-contract
 make phase4-verify
 make phase4-jenkins-stop
+make phase5-install
+make phase5-status
+make phase5-contract
+make phase5-verify
 ```
 
 ## 技术栈
@@ -105,7 +132,8 @@ make phase4-jenkins-stop
 - Deployment、Service、Ingress、StatefulSet、ConfigMap、Secret、PVC、Probe
 - Bash、ShellCheck、Makefile
 - Jenkins 2.568、Declarative Pipeline、Credentials、JUnit、Poll SCM
-- Prometheus、Grafana、Alertmanager（Phase 5 计划）
+- kube-prometheus-stack 87.21.0、Prometheus 3.13、Prometheus Operator 0.92、Grafana 13.1、Alertmanager 0.33
+- ServiceMonitor、PrometheusRule、PromQL、kube-state-metrics、node-exporter
 
 ## 实施路线
 
@@ -114,7 +142,7 @@ make phase4-jenkins-stop
 3. Phase 2：Dockerfile、Docker Compose、本地多容器联调。✅
 4. Phase 3：k3d/K3s、NGINX Ingress、Helm Chart、自愈与持久化。✅
 5. Phase 4：Jenkins 测试、构建、推送、部署和验证流水线。✅
-6. Phase 5：Prometheus 指标、Grafana 仪表盘和 Alertmanager 告警。
+6. Phase 5：Prometheus 指标、Grafana 仪表盘和 Alertmanager 告警。✅
 7. Phase 6：失败发布回滚演练、Runbook 完善与项目复盘。
 
 ## 项目记录
@@ -136,6 +164,8 @@ make phase4-jenkins-stop
 - Jenkins 仅绑定本机，但挂载 Docker Socket，适合受信任的个人实验环境，不是生产级隔离。
 - 两个 Jenkins 凭据当前位于 System / Global store；生产或多人共享环境应改为 Folder 级凭据或独立 Controller。
 - `plugins.txt` 固定插件集合但未逐项固定插件版本；Jenkins 基础镜像已固定，完整可复现的生产方案还应锁定插件版本。
+- 监控组件均为单副本，Prometheus/Alertmanager 使用短期 local-path PVC；适合本机学习和演练，不是生产级高可用或跨集群存储。
+- 当前未连接个人邮箱或外部聊天软件；告警在 Alertmanager 页面内验收，避免为简历项目引入额外账号、密钥和通知噪声。
 
 ## 项目原则
 

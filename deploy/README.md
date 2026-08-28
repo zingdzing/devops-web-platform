@@ -26,6 +26,12 @@ Chart 不创建密码值，也不安装 Ingress Controller。部署脚本从被 
 
 Phase 4 不替代 Phase 3 的首次环境创建：集群、Ingress Controller、数据库 Secret、MySQL StatefulSet 和 PVC 必须已经存在。Pipeline 不调用 `deploy-phase3.sh`，不读取根目录 `.env`，也不创建或修改数据库 Secret。
 
+### 可观测性与告警（Phase 5）
+
+`monitoring/` 固定 kube-prometheus-stack Chart `87.21.0` 的精简 values，并部署 Prometheus Operator、单副本 Prometheus、Grafana、Alertmanager、kube-state-metrics 和 node-exporter。应用 Chart 通过可开关的 ServiceMonitor、PrometheusRule 与 Dashboard ConfigMap 接入监控栈；没有安装 CRD 的早期环境仍可关闭 `monitoring.enabled` 正常渲染。
+
+监控栈在独立 `monitoring` Namespace 中运行。Grafana 管理员密码由本地交互命令写入 Kubernetes Secret；仓库、Jenkins 日志和命令行参数均不保存真实值。
+
 ## Phase 3 操作命令
 
 ```bash
@@ -54,6 +60,18 @@ make phase4-jenkins-stop
 
 向 GitHub `main` 推送提交即可由 Poll SCM 自动构建和发布；不要把 PAT、kubeconfig 或 Jenkins 密码作为命令参数、环境文件或仓库文件。完整启停、凭据轮换、诊断和回滚见 `docs/runbooks/phase-4-jenkins-operations.md`。
 
+## Phase 5 操作命令
+
+```bash
+make phase5-grafana-secret
+make phase5-install
+make phase5-status
+make phase5-contract
+make phase5-verify
+```
+
+`phase5-install` 负责受控安装或升级固定版本监控栈；普通 Jenkins 应用发布只更新业务 Chart 中的监控对象，不重复安装集群级 CRD 和 Operator。`phase5-verify` 会临时缩容 backend，确认 Prometheus 与 Alertmanager 真实告警，再自动恢复并复查 CRUD 与 MySQL PVC。
+
 ## 数据与密钥边界
 
 - `.env` 被 Git 忽略，且部署前必须是 mode 600；不要写入真实线上凭据。
@@ -66,6 +84,9 @@ make phase4-jenkins-stop
 
 Phase 4 的 Docker Hub PAT 和专用 kubeconfig 只存入 Jenkins Credentials。具体启停、轮换、失败诊断和手工回滚步骤见 `docs/runbooks/phase-4-jenkins-operations.md`。
 
-## 后续部署内容
+## 监控数据与卸载边界
 
-`monitoring/` 将在 Phase 5 保存 kube-prometheus-stack values、PrometheusRule 和 Grafana Dashboard。Phase 4 已通过手工 Build `#5`、Poll SCM 自动 Build `#7`、Jenkins 重启持久化和真实入口验收；监控能力仍属于后续阶段。
+- Prometheus 使用 2 Gi local-path PVC 和 2 天保留期，Alertmanager 使用 1 Gi local-path PVC；删除整个 k3d 集群仍会丢失这些本地数据。
+- 卸载监控 Helm Release 不得删除 `devops-platform` Namespace、MySQL PVC 或 Jenkins Home；业务数据与监控数据保持独立。
+- Prometheus、Grafana 与 Alertmanager 不通过 Ingress 对外暴露，只使用绑定 `127.0.0.1` 的临时端口转发。
+- 具体访问、升级、密码轮换、告警处置和安全卸载步骤见 `docs/runbooks/phase-5-monitoring-operations.md`。

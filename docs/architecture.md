@@ -58,6 +58,26 @@ Phase 3 复用 Phase 2 已验证的应用镜像和相对 URL。Compose DNS 名�
 
 Jenkins Controller 运行在本地 Docker 容器中，`127.0.0.1:8090` 只对宿主开放，Jenkins Home 使用 named volume 持久化。Docker Socket 允许构建镜像，也意味着较高宿主权限，因此只运行受信任的 `main`，不执行未知 Pull Request Jenkinsfile。
 
-## Planned monitoring flow (Phase 5)
+## Implemented monitoring flow (Phase 5)
 
-Prometheus 将采集 Kubernetes 和 Flask 指标，Grafana 展示状态，Alertmanager 接收可演练告警。监控阶段完成前，不宣称已实现可观测性平台。
+```text
+Flask /metrics
+  -> backend Service:http
+  -> ServiceMonitor (devops-platform)
+  -> Prometheus (monitoring, 2-day retention, 2 Gi PVC)
+
+Kubernetes API -> kube-state-metrics --------------------^
+node metrics   -> node-exporter -------------------------^
+
+Prometheus -> Grafana provisioned Dashboard
+PrometheusRule -> Prometheus rule evaluation -> Alertmanager
+```
+
+1. Flask 使用 Prometheus 文本端点暴露请求数、时延、任务状态、数据库连接结果和应用版本等低基数指标，不包含任务标题、描述、密码或 Token。
+2. 应用 Chart 中的 ServiceMonitor 通过明确 Namespace、Service 标签和命名端口发现 backend；Prometheus Target 已验证为 `UP`。
+3. Grafana sidecar 从带约定标签的 ConfigMap 自动加载九面板 Dashboard，Datasource 指向集群内 Prometheus Service。
+4. 三条 PrometheusRule 分别覆盖 backend Target 丢失、Deployment 可用副本不足和容器频繁重启，并路由给 Alertmanager。
+5. `scripts/verify-phase5.sh` 会记录原副本数和 MySQL PVC UID，创建持久化任务后把 backend 缩为 0，等待 `BackendTargetMissing` 在 Prometheus 与 Alertmanager 变为 Firing；随后恢复副本、等待规则 Inactive/活动告警消失，并验证任务与 PVC 未丢失。
+6. Prometheus、Grafana 和 Alertmanager 均不创建公网入口。运维访问使用绑定 `127.0.0.1` 的临时 `kubectl port-forward`，关闭终端后不影响集群内采集和告警计算。
+
+监控栈采用同一官方 kube-prometheus-stack Chart 的精简配置：单副本、短保留和明确资源边界，关闭本地 k3d 不需要或噪声较大的组件。它覆盖完整学习链路，但不声称具备生产级高可用、长期存储、多集群或外部通知能力。
